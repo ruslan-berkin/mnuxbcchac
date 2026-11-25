@@ -170,3 +170,32 @@ def test_groq_json_validation_400_retries_without_response_format():
 
     c = OpenAICompatClient("k", "m", client=SimpleNamespace(chat=SimpleNamespace(completions=Completions())))
     assert c.complete("s", "p", {"type": "object", "properties": {}}) == "{}" and len(calls) == 2
+
+
+def test_openai_compat_drops_temperature_when_model_rejects_it():
+    calls = []
+
+    class Completions:
+        def create(self, **kw):
+            calls.append(kw)
+            if "temperature" in kw:
+                raise Err(400, "Unsupported value: 'temperature' does not support 0 with this model")
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="{}"))])
+
+    c = OpenAICompatClient("k", "gpt-5-x", client=SimpleNamespace(chat=SimpleNamespace(completions=Completions())))
+    assert c.complete("s", "p", {"type": "object", "properties": {}}) == "{}"
+    assert "temperature" in calls[0] and "temperature" not in calls[1] and "response_format" in calls[1]
+    c.complete("s", "p", {"type": "object", "properties": {}})
+    assert "temperature" not in calls[2]  # запомнили, не пробуем снова
+
+
+def test_quota_exhausted_is_not_retried_and_marks_provider_dead():
+    calls = []
+
+    def fn():
+        calls.append(1)
+        raise Err(429, "Error code: 429 - You have no credits remaining. Add credits to continue")
+
+    with pytest.raises(LLMUnavailableError) as e:
+        call_with_retries(fn, o_classify, sleep=lambda s: None)
+    assert len(calls) == 1 and e.value.transient is True

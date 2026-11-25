@@ -57,6 +57,14 @@ def inline_schema(schema: dict) -> dict:
     return walk(schema)
 
 
+_QUOTA = re.compile(r"insufficient_quota|no credits|add credits|billing", re.IGNORECASE)
+
+
+def is_quota_exhausted(exc: BaseException) -> bool:
+    """Баланс/квота закончились: повторять бессмысленно, провайдера надо отключить."""
+    return bool(_QUOTA.search(str(exc)))
+
+
 # (retryable, retry_after_seconds)
 Classifier = Callable[[BaseException], tuple[bool, float | None]]
 
@@ -78,10 +86,13 @@ def call_with_retries(
         backoff = min(max_delay, base_delay * 2 ** (state.attempt_number - 1))
         return max(retry_after or 0.0, backoff)
 
+    def retryable(exc: BaseException) -> bool:
+        return classify(exc)[0] and not is_quota_exhausted(exc)
+
     retrying = Retrying(
         stop=stop_after_attempt(attempts),
         wait=wait,
-        retry=retry_if_exception(lambda e: classify(e)[0]),
+        retry=retry_if_exception(retryable),
         sleep=sleep,
         reraise=True,
         before_sleep=lambda st: log.warning(
@@ -91,7 +102,8 @@ def call_with_retries(
         return retrying(fn)
     except Exception as exc:
         err = LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {str(exc)[:300]}")
-        err.transient = classify(exc)[0]  # True: лимиты/5xx не прошли после ретраев
+        # True: провайдер «лёг» (лимиты/5xx не прошли после ретраев или закончились кредиты)
+        err.transient = classify(exc)[0] or is_quota_exhausted(exc)
         raise err from exc
 
 
