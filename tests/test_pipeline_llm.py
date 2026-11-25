@@ -46,7 +46,7 @@ def make_doc(tmp_path, text=DOC):
 def stage(system: str) -> str:
     for key, name in [("СЕГМЕНТАЦИЯ", "segment"), ("ПРОВЕРКА ОТДЕЛЬНЫХ", "each"),
                       ("ПРОВЕРКА НАБОРА", "set"), ("УТОЧНЯЮЩИЕ ВОПРОСЫ", "questions"),
-                      ("НЕЗАВИСИМАЯ ПЕРЕПРОВЕРКА", "verify")]:
+                      ("НЕЗАВИСИМАЯ ПЕРЕПРОВЕРКА", "verify"), ("КОНСОЛИДАЦИЯ ДУБЛЕЙ", "consolidate")]:
         if key in system:
             return name
     raise AssertionError("неизвестный этап")
@@ -55,10 +55,11 @@ def stage(system: str) -> str:
 CONFIRM = {"verdict": "confirmed", "severity": "critical", "reason": "ok"}
 
 
-def scripted(seg=None, each=None, set_=None, questions=None, verify=CONFIRM):
+def scripted(seg=None, each=None, set_=None, questions=None, verify=CONFIRM, consolidate_=None):
     def handler(system, prompt):
         s = stage(system)
-        data = {"segment": seg, "each": each, "set": set_, "questions": questions, "verify": verify}[s]
+        data = {"segment": seg, "each": each, "set": set_, "questions": questions, "verify": verify,
+                "consolidate": consolidate_ if consolidate_ is not None else {"groups": []}}[s]
         value = data(prompt) if callable(data) else data
         return value if isinstance(value, str) else json.dumps(value if value is not None else {}, ensure_ascii=False)
     return FakeLLM(handler=handler)

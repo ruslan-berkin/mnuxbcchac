@@ -109,6 +109,9 @@
 - Замечаний всего: {{ summary.findings_total }}.
 - По серьёзности: критичных {{ summary.by_severity.critical }}, существенных {{ summary.by_severity.major }}, незначительных {{ summary.by_severity.minor }}.
 - Отброшено при проверке цитат: {{ summary.dropped }}.
+{% if summary.merged or passport.llm_mode == "full" %}
+- Объединено дублей: {{ summary.merged }}.
+{% endif %}
 {% if summary.rejected or passport.llm_mode == "full" %}
 - Критичных замечаний снято при независимой перепроверке: {{ summary.rejected }}.
 {% endif %}

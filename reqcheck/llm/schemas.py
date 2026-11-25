@@ -58,3 +58,12 @@ class VerifyOut(BaseModel):
     verdict: Literal["confirmed", "rejected"]
     severity: Severity = "major"
     reason: str = ""
+
+
+class DupGroup(BaseModel):
+    ids: list[str]
+    primary: str
+
+
+class ConsolidateOut(BaseModel):
+    groups: list[DupGroup] = Field(default_factory=list)

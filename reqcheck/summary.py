@@ -96,6 +96,7 @@ class Summary:
     critical: list[Finding]
     dropped: int
     rejected: int
+    merged: int
     requirements_with_findings: int
 
 
@@ -111,5 +112,6 @@ def build_summary(report: Report) -> Summary:
         critical=[f for f in report.findings if f.severity == "critical"],
         dropped=report.dropped_count,
         rejected=report.verifier_rejected,
+        merged=report.merged_count,
         requirements_with_findings=len(affected),
     )

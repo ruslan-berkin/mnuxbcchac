@@ -88,6 +88,7 @@ class Report(BaseModel):
     requirements: list[Requirement]
     findings: list[Finding]
     dropped_count: int = 0
+    merged_count: int = 0  # замечания, слитые как дубли
     verifier_rejected: int = 0  # критичные замечания, снятые перепроверкой
     verdict: Verdict
     # R-xx -> причина, по которой LLM-проверка не удалась («не проверено»)

@@ -20,6 +20,7 @@ from reqcheck.llm.base import LLMClient
 from reqcheck.models import LLMMode, Report, RunPassport
 from reqcheck.render import render_report
 from reqcheck.checks.each import check_each
+from reqcheck.consolidate import consolidate
 from reqcheck.checks.set import check_set
 from reqcheck.ground import ground_findings
 from reqcheck.llm.cache import DiskCache
@@ -151,7 +152,12 @@ def run(
         log.info("ground: отброшено %d (в том числе требований %d)", dropped, dropped_reqs)
         findings = finalize_findings(findings)
         rejected = 0
+        merged = 0
         if mode == "full":
+            findings, merged, c_warnings = consolidate(findings, client, cache)  # type: ignore[arg-type]
+            warnings.extend(c_warnings)
+            log.info("consolidate: слито дублей %d", merged)
+            findings = finalize_findings(findings)
             findings, rejected, v_warnings = verify_critical(doc, findings, client, cache)  # type: ignore[arg-type]
             warnings.extend(v_warnings)
             log.info("verify: снято критичных %d", rejected)
@@ -186,6 +192,7 @@ def run(
             requirements=requirements,
             findings=findings,
             dropped_count=dropped,
+            merged_count=merged,
             verifier_rejected=rejected,
             unchecked=unchecked,
             set_conclusions=conclusions,
