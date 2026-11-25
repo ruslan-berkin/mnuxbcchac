@@ -112,19 +112,42 @@ def _read_text(p: Path) -> tuple[list[str], list[Block], str]:
 # ---------------------------------------------------------------- PDF
 
 
+def _pdf_tables(page) -> list[tuple[object, list[str]]]:
+    """Таблицы страницы как (rect, строки вида «| a | b |»). Текст ячеек берётся по прямоугольнику."""
+    import pymupdf
+
+    out = []
+    try:
+        found = page.find_tables().tables
+    except Exception:  # find_tables капризен на экзотических PDF; тогда остаётся обычный текст
+        return out
+    for t in found:
+        rows = []
+        for r in t.rows:
+            cells = [" ".join(page.get_text("text", clip=pymupdf.Rect(c)).split()) if c else ""
+                     for c in r.cells]
+            rows.append("| " + " | ".join(cells) + " |")
+        if rows:
+            out.append((pymupdf.Rect(t.bbox), rows))
+    return out
+
+
 def _read_pdf(p: Path) -> tuple[list[str], list[Block], str]:
     import pymupdf
 
-    lines: list[str] = []
-    blocks: list[Block] = []
-    section = ""
+    pages = []
     with pymupdf.open(p) as pdf:
         meta_title = (pdf.metadata or {}).get("title", "") or ""
-        pages = [pdf[i].get_text("dict", sort=True) for i in range(len(pdf))]
+        for i in range(len(pdf)):
+            page = pdf[i]
+            tables = _pdf_tables(page)
+            pages.append((page.get_text("dict", sort=True), tables))
 
     sizes: Counter[float] = Counter()
-    for data in pages:
+    for data, tables in pages:
         for blk in data.get("blocks", []):
+            if _in_tables(blk, tables):
+                continue
             for ln in blk.get("lines", []):
                 for sp in ln.get("spans", []):
                     sizes[round(sp["size"], 1)] += len(sp["text"].strip())
@@ -134,12 +157,28 @@ def _read_pdf(p: Path) -> tuple[list[str], list[Block], str]:
     body = max((sz for sz, n in sizes.items() if n / total >= 0.25),
                default=sizes.most_common(1)[0][0] if sizes else 0.0)
 
+    lines: list[str] = []
+    blocks: list[Block] = []
+    section = ""
     first_heading = ""
-    for page_no, data in enumerate(pages, start=1):
+    for page_no, (data, tables) in enumerate(pages, start=1):
+        items: list[tuple[float, str, object]] = []
         for blk in data.get("blocks", []):
+            if blk.get("lines") and not _in_tables(blk, tables):
+                items.append((blk["bbox"][1], "text", blk))
+        for rect, rows in tables:
+            items.append((rect.y0, "table", rows))
+        items.sort(key=lambda it: it[0])
+        for _, kind, payload in items:
+            if kind == "table":
+                start = len(lines) + 1
+                lines.extend(payload)  # type: ignore[arg-type]
+                blocks.append(Block(text="\n".join(payload), anchor=Anchor(  # type: ignore[arg-type]
+                    section=section, page=page_no, line_start=start, line_end=len(lines))))
+                continue
             blk_lines: list[str] = []
             max_size = 0.0
-            for ln in blk.get("lines", []):
+            for ln in payload["lines"]:  # type: ignore[index]
                 text = "".join(sp["text"] for sp in ln.get("spans", [])).strip()
                 if not text:
                     continue
@@ -156,6 +195,12 @@ def _read_pdf(p: Path) -> tuple[list[str], list[Block], str]:
             blocks.append(Block(text="\n".join(blk_lines), anchor=Anchor(
                 section=section, page=page_no, line_start=start, line_end=len(lines))))
     return lines, blocks, meta_title.strip() or first_heading
+
+
+def _in_tables(blk: dict, tables: list) -> bool:
+    x0, y0, x1, y1 = blk["bbox"]
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    return any(r.x0 <= cx <= r.x1 and r.y0 <= cy <= r.y1 for r, _ in tables)
 
 
 # ---------------------------------------------------------------- DOCX
