@@ -29,7 +29,7 @@ def test_finalize_dedups_numbers_and_orders():
 def test_top_priorities_by_severity_then_affected():
     fs = finalize_findings([
         _f("minor", q="m", line=1), _f("major", reqs=("R-01",), q="x", line=2),
-        _f("major", reqs=("R-01", "R-02"), q="y", line=3), _f("critical", q="z", line=4)])
+        _f("major", reqs=("R-01", "R-02"), q="y", line=3), _f("critical", crit="VER", q="z", line=4)])
     top = top_priorities(fs, 3)
     assert [f.severity for f in top] == ["critical", "major", "major"]
     assert len(top[1].requirement_ids) == 2

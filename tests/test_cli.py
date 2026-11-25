@@ -67,10 +67,18 @@ def test_fake_provider_runs_in_full_mode(sample_md, tmp_path):
     assert data["passport"]["llm_mode"] == "full" and data["passport"]["model_provider"] == "fake"
 
 
-def test_real_provider_not_ready_exits_5(sample_md, tmp_path, monkeypatch):
+def test_llm_unavailable_exits_5_without_report(sample_md, tmp_path, monkeypatch):
+    from reqcheck.errors import LLMUnavailableError
+
+    def boom(settings):
+        raise LLMUnavailableError("сервис недоступен")
+
     monkeypatch.setenv("GEMINI_API_KEY", "k")
     monkeypatch.setenv("GEMINI_MODEL", "m")
-    assert run(sample_md, tmp_path / "r.md", "--provider", "gemini").exit_code == 5
+    monkeypatch.setattr("reqcheck.pipeline.build_client", boom)  # без сетевых вызовов
+    r = run(sample_md, tmp_path / "r.md", "--provider", "gemini")
+    assert r.exit_code == 5
+    assert not (tmp_path / "r.md").exists()
 
 
 def test_unknown_provider_is_usage_error(sample_md, tmp_path):

@@ -1,7 +1,4 @@
-"""pipeline: ingest → segment → check_each → check_set (+ lint) → ground → render.
-
-Фаза 1: работают ingest, segment (явные ID), lint и render. LLM-этапы подключаются в Фазе 2.
-"""
+"""pipeline: ingest → segment → check_each → check_set (+ lint) → ground → render."""
 
 from __future__ import annotations
 
@@ -21,7 +18,13 @@ from reqcheck.llm import build_client
 from reqcheck.llm.base import LLMClient
 from reqcheck.models import LLMMode, Report, RunPassport
 from reqcheck.render import render_report
-from reqcheck.segment import segment_explicit
+from reqcheck.checks.each import check_each
+from reqcheck.checks.set import check_set
+from reqcheck.ground import ground_findings
+from reqcheck.llm.cache import DiskCache
+from reqcheck.models import Finding
+from reqcheck.questions import ensure_questions
+from reqcheck.segment import segment
 from reqcheck.summary import compute_verdict, finalize_findings
 
 log = logging.getLogger("reqcheck")
@@ -109,17 +112,41 @@ def run(
                  len(doc.lines), len(doc.blocks))
         log.info("Режим: %s", mode)
 
-        requirements = segment_explicit(doc)
-        log.info("segment: найдено требований с явными ID: %d", len(requirements))
-        if not requirements:
-            warnings.append("Явные ID требований не найдены; требования без номеров "
-                            "выделяет LLM (появится в Фазе 2).")
-
+        cache = DiskCache() if (use_cache and mode == "full") else None
         if mode == "full":
-            warnings.append("LLM-этапы check_each и check_set ещё не подключены в этой версии каркаса.")
+            log.info("LLM: %s / %s, кэш %s", client.provider, client.model, "вкл" if cache else "выкл")  # type: ignore[union-attr]
 
-        findings = finalize_findings(run_lint(doc, requirements))
-        log.info("lint: замечаний %d", len(findings))
+        requirements, dropped_reqs, seg_warnings = segment(doc, client if mode == "full" else None, cache)
+        warnings.extend(seg_warnings)
+        log.info("segment: требований %d", len(requirements))
+        if not requirements:
+            warnings.append("Требования не выделены: нет явных ID" +
+                            ("." if mode == "full" else " и режим lint-only (требования без номеров выделяет LLM)."))
+
+        findings: list[Finding] = []
+        unchecked: dict[str, str] = {}
+        conclusions: dict[str, str] = {}
+        if mode == "full" and requirements:
+            each_findings, unchecked = check_each(doc, requirements, client, cache)  # type: ignore[arg-type]
+            log.info("check_each: замечаний %d, не проверено %d", len(each_findings), len(unchecked))
+            set_findings, conclusions, set_warning = check_set(doc, requirements, client, cache)  # type: ignore[arg-type]
+            log.info("check_set: замечаний %d", len(set_findings))
+            if set_warning:
+                warnings.append(set_warning)
+            findings += each_findings + set_findings
+        lint_findings = run_lint(doc, requirements)
+        log.info("lint: замечаний %d", len(lint_findings))
+        findings += lint_findings
+
+        findings, dropped = ground_findings(doc, findings)
+        dropped += dropped_reqs
+        log.info("ground: отброшено %d (в том числе требований %d)", dropped, dropped_reqs)
+        findings = finalize_findings(findings)
+        if mode == "full":
+            findings, q_warnings = ensure_questions(findings, client, cache)  # type: ignore[arg-type]
+            warnings.extend(q_warnings)
+        if unchecked:
+            warnings.append(f"Не проверено LLM: {', '.join(sorted(unchecked))} (см. раздел 3).")
 
         passport = RunPassport(
             document_title=doc.title,
@@ -135,7 +162,9 @@ def run(
             passport=passport,
             requirements=requirements,
             findings=findings,
-            dropped_count=0,
+            dropped_count=dropped,
+            unchecked=unchecked,
+            set_conclusions=conclusions,
             verdict=compute_verdict(findings, mode),
             warnings=warnings,
         )

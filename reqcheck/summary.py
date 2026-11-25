@@ -5,23 +5,52 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
+from reqcheck.ground import normalize
 from reqcheck.models import Finding, LLMMode, Report, Verdict
 
 SEVERITY_RANK = {"critical": 0, "major": 1, "minor": 2}
 SEVERITY_RU = {"critical": "критичное", "major": "существенное", "minor": "незначительное"}
 
 
-def finalize_findings(findings: list[Finding]) -> list[Finding]:
-    """Дедупликация, стабильная сортировка и сквозная нумерация D-001…"""
-    seen: set[tuple] = set()
-    unique: list[Finding] = []
+CRITICAL_CODES = {"VER", "CMP", "S-CON", "S-CMP"}
+MINOR_ONLY_CODES = {"CNF"}
+
+
+def normalize_severity(f: Finding) -> Finding:
+    """critical только для VER/CMP/S-CON/S-CMP; CNF (оформление) не выше minor."""
+    sev = f.severity
+    if sev == "critical" and f.criterion not in CRITICAL_CODES:
+        sev = "major"
+    if f.criterion in MINOR_ONLY_CODES:
+        sev = "minor"
+    return f if sev == f.severity else f.model_copy(update={"severity": sev})
+
+
+def _dedupe(findings: list[Finding]) -> list[Finding]:
+    """Дубль: тот же критерий, те же требования и одна цитата содержит другую."""
+    groups: dict[tuple, list[tuple[Finding, str]]] = {}
+    kept: list[Finding] = []
     for f in findings:
-        key = (f.rule or f.problem, f.criterion, tuple(f.quotes), tuple(f.requirement_ids))
-        if key not in seen:
-            seen.add(key)
-            unique.append(f)
+        key = (f.criterion, tuple(sorted(f.requirement_ids)))
+        text = normalize(" ".join(f.quotes))
+        dup_of = next((g for g in groups.get(key, []) if text in g[1] or g[1] in text), None)
+        if dup_of is None:
+            groups.setdefault(key, []).append((f, text))
+            kept.append(f)
+            continue
+        old = dup_of[0]
+        better = (SEVERITY_RANK[f.severity], f.source != "llm") < (SEVERITY_RANK[old.severity], old.source != "llm")
+        if better:
+            kept[kept.index(old)] = f
+            groups[key][groups[key].index(dup_of)] = (f, text)
+    return kept
+
+
+def finalize_findings(findings: list[Finding]) -> list[Finding]:
+    """Нормализация серьёзности, дедупликация, стабильная сортировка и нумерация D-001…"""
+    unique = _dedupe([normalize_severity(f) for f in findings])
     unique.sort(key=lambda f: (
-        f.anchors[0].line_start if f.anchors else 0, SEVERITY_RANK[f.severity], f.criterion))
+        f.anchors[0].line_start if f.anchors else 0, SEVERITY_RANK[f.severity], f.criterion, f.problem))
     return [f.model_copy(update={"id": f"D-{i:03d}"}) for i, f in enumerate(unique, start=1)]
 
 
