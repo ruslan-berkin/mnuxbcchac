@@ -1,0 +1,166 @@
+# {{ report_title }}: {{ passport.document_title | inline }}
+
+## 1. {{ titles[0] }}
+
+| Поле | Значение |
+| :--- | :--- |
+| Название документа | {{ passport.document_title | cell }} |
+| Путь к документу | `{{ passport.document_path | cell }}` |
+| SHA-256 документа | `{{ passport.document_sha256 }}` |
+| Дата и время прогона | {{ passport.run_datetime }} |
+| Провайдер LLM | {{ passport.model_provider | cell }} |
+| Модель | {{ passport.model_id | cell }} |
+| Версия агента | {{ passport.agent_version | cell }} |
+| Режим | {{ passport.llm_mode }} |
+{% if report.warnings %}
+
+{% for w in report.warnings %}
+> ⚠️ {{ w | inline }}
+{% endfor %}
+{% endif %}
+
+## 2. {{ titles[1] }}
+
+Всего требований: {{ report.requirements | length }}.
+
+| ID в отчёте | ID в документе | Тип | Краткая формулировка | Цитата | Место |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+{% for r in report.requirements %}
+| {{ r.id }} | {{ r.source_id or "без номера" }} | {{ r.kind }} | {{ r.summary | cell }} | «{{ r.quote | cell }}» | {{ r.anchor | place | cell }} |
+{% endfor %}
+
+## 3. {{ titles[2] }}
+{% if passport.llm_mode == "lint-only" %}
+
+> Режим lint-only: LLM не вызывалась. Ниже только замечания детерминированных правил, отсутствие замечаний не означает, что требование проверено полностью.
+{% endif %}
+{% for b in req_blocks %}
+
+### {{ b.req.id }}{% if b.req.source_id %} ({{ b.req.source_id }}){% endif %}: {{ b.status }}
+
+> «{{ b.req.quote | inline }}»
+
+Место: {{ b.req.anchor | place }}.
+{% if b.reason %}
+
+Причина, по которой проверка не выполнена: {{ b.reason | inline }}
+{% endif %}
+{% for f in b.findings %}
+
+- **{{ f.id }}** · `{{ f.criterion }}` {{ criteria[f.criterion].title }} · {{ sev_ru[f.severity] }} ({{ f.severity }})
+  - Цитата: {{ quotes(f) }}
+  - Место: {{ places(f) }}
+  - Проблема: {{ f.problem | inline }}
+  - Как исправить: {{ f.fix | inline }}
+{% endfor %}
+{% endfor %}
+
+## 4. {{ titles[3] }}
+{% for g in set_groups %}
+
+### {{ g.code }}: {{ g.title }}
+
+Вывод: {{ g.conclusion | inline }}
+{% for f in g.findings %}
+
+- **{{ f.id }}** · `{{ f.criterion }}` {{ criteria[f.criterion].title }} · {{ sev_ru[f.severity] }} ({{ f.severity }})
+  - Требования: {{ f.requirement_ids | join(", ") if f.requirement_ids else "набор в целом" }}
+  - Цитата: {{ quotes(f) }}
+  - Место: {{ places(f) }}
+  - Проблема: {{ f.problem | inline }}
+  - Как исправить: {{ f.fix | inline }}
+{% endfor %}
+{% endfor %}
+
+## 5. {{ titles[4] }}
+{% if not question_groups and not general_questions %}
+
+Уточняющих вопросов нет.{% if passport.llm_mode == "lint-only" %} В режиме lint-only вопросы формируют только правила; основной набор вопросов готовит LLM.{% endif %}
+
+{% endif %}
+{% for g in question_groups %}
+
+### {{ g.req.id }}{% if g.req.source_id %} ({{ g.req.source_id }}){% endif %}
+
+{% for f in g.findings %}
+{{ loop.index }}. {{ f.question | inline }}
+   - Связано с: {{ g.req.id }}, {{ f.id }}.
+   - Почему нужен ответ до разработки: {{ f.problem | inline }}
+{% endfor %}
+{% endfor %}
+{% if general_questions %}
+
+### Набор в целом
+
+{% for f in general_questions %}
+{{ loop.index }}. {{ f.question | inline }}
+   - Связано с: {{ f.id }}.
+   - Почему нужен ответ до разработки: {{ f.problem | inline }}
+{% endfor %}
+{% endif %}
+
+## 6. {{ titles[5] }}
+
+- Требований: {{ summary.requirements_total }}, из них с замечаниями: {{ summary.requirements_with_findings }}.
+- Замечаний всего: {{ summary.findings_total }}.
+- По серьёзности: критичных {{ summary.by_severity.critical }}, существенных {{ summary.by_severity.major }}, незначительных {{ summary.by_severity.minor }}.
+- Отброшено при проверке цитат: {{ summary.dropped }}.
+{% if report.unchecked %}
+- Не проверено из-за ошибок LLM: {{ report.unchecked | length }} ({{ report.unchecked.keys() | join(", ") }}).
+{% endif %}
+
+| Критерий | Замечаний |
+| :--- | :--- |
+{% for code, n in summary.by_criterion.items() %}
+| `{{ code }}` {{ criteria[code].title }} | {{ n }} |
+{% else %}
+| нет замечаний | 0 |
+{% endfor %}
+
+Критичные дефекты (непроверяемые, противоречивые, неполные формулировки):
+{% for f in summary.critical %}
+
+- **{{ f.id }}** · `{{ f.criterion }}` · {{ quotes(f) }} · {{ places(f) }}
+{% else %}
+
+- Критичных дефектов нет.
+{% endfor %}
+
+## 7. {{ titles[6] }}
+
+**Вердикт: {{ report.verdict.text | inline }}**
+
+Что исправить в первую очередь:
+{% for f in priorities %}
+
+{{ loop.index }}. **{{ f.id }}** · `{{ f.criterion }}` · {{ sev_ru[f.severity] }}{% if f.requirement_ids %} · {{ f.requirement_ids | join(", ") }}{% endif %}: {{ f.fix | inline }} ({{ places(f) }})
+{% else %}
+
+Срочных исправлений нет.
+{% endfor %}
+
+## 8. {{ titles[7] }}
+
+Проверка выполняется по ISO/IEC/IEEE 29148:2018 (п. 5.2.5 и 5.2.6) и IEEE Std 830-1998 (п. 4.3). Модель только находит дефекты и формулирует замечания; структуру отчёта, счётчики, вердикт и проверку цитат выполняет код.
+
+### Отдельное требование
+
+| Код | Критерий | Пункт стандарта | Как проверять |
+| :--- | :--- | :--- | :--- |
+{% for code in requirement_codes %}
+| `{{ code }}` | {{ criteria[code].title }} | {{ criteria[code].reference }} | {{ criteria[code].how_to_check }} |
+{% endfor %}
+
+### Набор требований
+
+| Код | Критерий | Пункт стандарта | Как проверять |
+| :--- | :--- | :--- | :--- |
+{% for code in set_codes %}
+| `{{ code }}` | {{ criteria[code].title }} | {{ criteria[code].reference }} | {{ criteria[code].how_to_check }} |
+{% endfor %}
+
+### Серьёзность
+
+- `critical`: непроверяемое, противоречивое или неполное так, что без исправления нельзя написать код или тест.
+- `major`: несколько разумных трактовок, отсутствует граница или единица.
+- `minor`: стиль, шаблон, оформление, незаполненные служебные поля.
