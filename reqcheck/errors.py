@@ -33,3 +33,4 @@ class LLMUnavailableError(ReqcheckError):
     """LLM недоступна после ретраев."""
 
     exit_code = EXIT_LLM_UNAVAILABLE
+    transient = False  # True: исчерпаны ретраи на лимиты/5xx (провайдер временно «лежит»)

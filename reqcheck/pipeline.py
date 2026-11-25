@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 import tempfile
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from reqcheck.checks.lint import run_lint
 from reqcheck.config import Settings
 from reqcheck.errors import InputFileError, MissingKeyError
 from reqcheck.ingest import load_document
-from reqcheck.llm import build_client
+from reqcheck.llm import FallbackLLM, build_client
 from reqcheck.llm.base import LLMClient
 from reqcheck.models import LLMMode, Report, RunPassport
 from reqcheck.render import render_report
@@ -80,6 +81,8 @@ def run(
     require_llm: bool = False,
     use_cache: bool = True,
     client: LLMClient | None = None,
+    fallbacks: Sequence[Settings] = (),
+    notes: Sequence[str] = (),
 ) -> Report:
     out = Path(output_path)
     json_path, log_path = sidecar_paths(out)
@@ -87,7 +90,7 @@ def run(
     doc = load_document(input_path)  # ошибки ввода: коды 2 и 3
 
     mode: LLMMode = "lint-only"
-    warnings: list[str] = []
+    warnings: list[str] = list(notes)
     if not lint_only:
         if client is not None or settings.has_key:
             mode = "full"
@@ -100,7 +103,12 @@ def run(
                 "Ключ LLM не найден: прогон выполнен в режиме lint-only, только по правилам без LLM."
             )
     if mode == "full" and client is None:
-        client = build_client(settings)  # LLMUnavailableError → код 5
+        if fallbacks:  # у основного меньше попыток, чтобы быстрее перейти к запасному
+            chain = [settings, *fallbacks]
+            client = FallbackLLM([build_client(st, attempts=3 if i < len(chain) - 1 else 5)
+                                  for i, st in enumerate(chain)])
+        else:
+            client = build_client(settings)  # LLMUnavailableError → код 5
 
     out.parent.mkdir(parents=True, exist_ok=True)
     handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
@@ -148,13 +156,23 @@ def run(
         if unchecked:
             warnings.append(f"Не проверено LLM: {', '.join(sorted(unchecked))} (см. раздел 3).")
 
+        provider_name = client.provider if client else "не используется"
+        model_name = client.model if client else "—"
+        if isinstance(client, FallbackLLM):
+            used = client.used or [(client.provider, client.model)]
+            provider_name = " → ".join(dict.fromkeys(pv for pv, _ in used))
+            model_name = ", ".join(dict.fromkeys(m for _, m in used))
+            if client.switches:
+                warnings.append("Основной провайдер был недоступен, часть вызовов выполнил запасной: "
+                                + "; ".join(client.switches) + ".")
+
         passport = RunPassport(
             document_title=doc.title,
             document_path=doc.path,
             document_sha256=doc.sha256,
             run_datetime=_now(),
-            model_provider=client.provider if client else "не используется",
-            model_id=client.model if client else "—",
+            model_provider=provider_name,
+            model_id=model_name,
             agent_version=agent_version(),
             llm_mode=mode,
         )

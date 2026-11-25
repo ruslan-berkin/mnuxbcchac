@@ -50,3 +50,34 @@ def load_settings(provider: str | None = None, model: str | None = None) -> Sett
     if prov == "fake":
         return Settings(prov, model or "fake-model", "fake")
     raise ValueError(f"Неизвестный провайдер «{prov}». Допустимы: {', '.join(PROVIDERS)}")
+
+
+def load_chain(
+    provider: str | None = None, model: str | None = None, *, fallback: bool = True,
+) -> tuple[Settings, list[Settings], list[str]]:
+    """Основной провайдер и запасные (только с ключами) + заметки для отчёта.
+
+    LLM_FALLBACK=groq,gemini задаёт порядок явно; «none» отключает. Иначе запасными
+    становятся все остальные провайдеры, у которых в .env есть ключ и модель.
+    """
+    primary = load_settings(provider, model)
+    notes: list[str] = []
+    if primary.provider == "fake" or not fallback:
+        return primary, [], notes
+    raw = (os.getenv("LLM_FALLBACK") or "").strip().lower()
+    if raw == "none":
+        return primary, [], notes
+    names = [n.strip() for n in raw.split(",") if n.strip()] or [
+        n for n in PROVIDERS if n not in (primary.provider, "fake")]
+    others = []
+    for n in names:
+        if n == primary.provider or n not in PROVIDERS or n == "fake":
+            continue
+        st = load_settings(n)
+        if st.has_key:
+            others.append(st)
+    if not primary.has_key and others:
+        notes.append(f"У основного провайдера «{primary.provider}» нет ключа или модели, "
+                     f"использован «{others[0].provider}».")
+        return others[0], others[1:], notes
+    return primary, others, notes

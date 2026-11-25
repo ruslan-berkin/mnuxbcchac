@@ -29,6 +29,10 @@ class LLMClient(ABC):
     provider: str
     model: str
 
+    def cache_identities(self) -> list[tuple[str, str]]:
+        """Под какими (провайдер, модель) искать ответ в кэше."""
+        return [(self.provider, self.model)]
+
     @abstractmethod
     def complete(self, system: str, prompt: str, schema: dict) -> str:
         """Вернуть сырой текст ответа (ожидается JSON по схеме). temperature=0.
@@ -86,7 +90,9 @@ def call_with_retries(
     try:
         return retrying(fn)
     except Exception as exc:
-        raise LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {str(exc)[:300]}") from exc
+        err = LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {str(exc)[:300]}")
+        err.transient = classify(exc)[0]  # True: лимиты/5xx не прошли после ретраев
+        raise err from exc
 
 
 def load_prompt(name: str) -> str:
@@ -112,12 +118,15 @@ def structured_call(
 
     В кэш попадают только валидные ответы.
     """
-    key = DiskCache.make_key(client.provider, client.model, system, prompt, schema.__name__)
+    def key_for(provider: str, model: str) -> str:
+        return DiskCache.make_key(provider, model, system, prompt, schema.__name__)
+
     if cache is not None:
-        hit = cache.get(key)
-        if hit is not None:
-            log.info("LLM cache hit %s", key[:12])
-            return schema.model_validate_json(hit)
+        for prov, mod in client.cache_identities():
+            hit = cache.get(key_for(prov, mod))
+            if hit is not None:
+                log.info("LLM cache hit %s (%s/%s)", key_for(prov, mod)[:12], prov, mod)
+                return schema.model_validate_json(hit)
 
     json_schema = schema.model_json_schema()
     raw = client.complete(system, prompt, json_schema)
@@ -132,8 +141,8 @@ def structured_call(
         except (ValidationError, json.JSONDecodeError) as second_error:
             raise LLMValidationError(str(second_error)[:500]) from second_error
 
-    if cache is not None:
-        cache.put(key, result.model_dump_json())
+    if cache is not None:  # кладём под тем провайдером, который реально ответил
+        cache.put(key_for(client.provider, client.model), result.model_dump_json())
     return result
 
 
