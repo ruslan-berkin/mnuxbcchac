@@ -8,6 +8,13 @@ from reqcheck.llm.fake import FakeLLM
 from reqcheck.llm.fallback import FallbackLLM
 
 
+def _thinking_level() -> str | None:
+    import os
+
+    v = (os.getenv("GEMINI_THINKING") or "low").strip().lower()
+    return None if v in ("", "default", "none") else v
+
+
 def build_client(settings: Settings, attempts: int = 5) -> LLMClient:
     if settings.provider == "fake":
         return FakeLLM(model=settings.model or "fake-model")
@@ -17,7 +24,8 @@ def build_client(settings: Settings, attempts: int = 5) -> LLMClient:
     if settings.provider == "gemini":
         from reqcheck.llm.gemini import GeminiClient
 
-        return GeminiClient(settings.api_key, settings.model, attempts=attempts)
+        return GeminiClient(settings.api_key, settings.model, attempts=attempts,
+                            thinking_level=_thinking_level())
     if settings.provider == "groq":
         from reqcheck.llm.openai_compat import OpenAICompatClient
 

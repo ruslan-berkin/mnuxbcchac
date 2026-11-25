@@ -138,3 +138,35 @@ def test_groq_preset(monkeypatch):
     assert c.provider == "groq" and c.model == "some-model"
     monkeypatch.setenv("GROQ_API_KEY", "your_groq_api_key_here")
     assert not load_settings("groq").has_key  # заглушка из .env.example не считается ключом
+
+
+def test_gemini_sends_thinking_level_and_falls_back_without_it():
+    seen = []
+
+    class Models:
+        def generate_content(self, model, contents, config):
+            seen.append(config.thinking_config)
+            if config.thinking_config is not None:
+                raise Err(400, "Thinking level is not supported for this model")
+            return SimpleNamespace(text="{}")
+
+    c = GeminiClient("k", "m", client=SimpleNamespace(models=Models()))
+    assert c.complete("s", "p", {"type": "object", "properties": {}}) == "{}"
+    assert str(seen[0].thinking_level.value).lower() == "low" and seen[1] is None
+    c.complete("s", "p", {"type": "object", "properties": {}})
+    assert seen[2] is None  # больше не пробуем
+    assert GeminiClient("k", "m", client=object(), thinking_level=None)._thinking_level is None
+
+
+def test_groq_json_validation_400_retries_without_response_format():
+    calls = []
+
+    class Completions:
+        def create(self, **kw):
+            calls.append(kw)
+            if "response_format" in kw:
+                raise Err(400, "Failed to validate JSON. See failed_generation")
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="{}"))])
+
+    c = OpenAICompatClient("k", "m", client=SimpleNamespace(chat=SimpleNamespace(completions=Completions())))
+    assert c.complete("s", "p", {"type": "object", "properties": {}}) == "{}" and len(calls) == 2

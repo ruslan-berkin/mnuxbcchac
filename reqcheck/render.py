@@ -92,7 +92,10 @@ def render_report(report: Report) -> str:
     req_blocks = []
     for r in report.requirements:
         status, items = requirement_status(report, r)
-        req_blocks.append({"req": r, "status": status, "findings": items,
+        # Замечание на несколько требований описываем полностью один раз, у первого из них.
+        own = [f for f in items if f.requirement_ids[0] == r.id]
+        refs = [f for f in items if f.requirement_ids[0] != r.id]
+        req_blocks.append({"req": r, "status": status, "findings": own, "refs": refs,
                            "reason": report.unchecked.get(r.id)})
 
     # Вопросы: по требованиям, затем по набору в целом.

@@ -77,3 +77,10 @@ def test_works_on_pdf_table_rows(repo_root):
     doc = load_document(repo_root / "examples" / "input" / "requirements.pdf")
     m = GroundIndex(doc).find("Покупка 31 января в 23:58 на 4 000 ₸")
     assert m and doc.lines[m.line_start - 1].startswith("| Покупка 31 января")
+
+
+def test_listing_prefix_copied_from_prompt_is_ignored(tmp_path):
+    doc = mkdoc(tmp_path, "## Р\n\nПри ошибке ввода сообщение появляется под полем.\n")
+    kept, dropped = ground_findings(doc, [
+        finding("R-02 [без номера] (ui): При ошибке ввода сообщение появляется под полем.")])
+    assert dropped == 0 and kept[0].quotes == ["При ошибке ввода сообщение появляется под полем."]

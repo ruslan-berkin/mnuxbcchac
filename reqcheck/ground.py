@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
 from rapidfuzz import fuzz
@@ -31,6 +32,14 @@ def _norm_char(ch: str) -> str:
     ch = _DASHES.get(ch, ch)
     ch = ch.lower()
     return "е" if ch == "ё" else ch
+
+
+# Модель иногда копирует в цитату служебный префикс списка из промпта: «R-01 [Ф-1] (functional): …».
+_LISTING_PREFIX = re.compile(r"^\s*R-\d+\s*\[[^\]]*\]\s*\([^)]*\)\s*:\s*")
+
+
+def clean_quote(quote: str) -> str:
+    return _LISTING_PREFIX.sub("", quote)
 
 
 def normalize(text: str) -> str:
@@ -94,7 +103,7 @@ class GroundIndex:
         return l0 + 1, l1 + 1, " ".join(raw.split())
 
     def find(self, quote: str) -> GroundMatch | None:
-        nq = normalize(quote)
+        nq = normalize(clean_quote(quote))
         if len(nq) < 3:
             return None
         i = self.text.find(nq)

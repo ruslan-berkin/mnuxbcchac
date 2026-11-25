@@ -23,9 +23,12 @@ def classify(exc: BaseException) -> tuple[bool, float | None]:
 class GeminiClient(LLMClient):
     provider = "gemini"
 
-    def __init__(self, api_key: str, model: str, *, client=None, timeout_s: float = 120.0,
-                 attempts: int = 5, sleep=None) -> None:
+    def __init__(self, api_key: str, model: str, *, client=None, timeout_s: float = 180.0,
+                 attempts: int = 5, sleep=None, thinking_level: str | None = "low") -> None:
+        """thinking_level: «low» ускоряет рассуждающие модели (по умолчанию они упираются в таймаут);
+        None — не передавать параметр."""
         self.model = model
+        self._thinking_level = thinking_level
         self._attempts = attempts
         self._sleep = sleep
         if client is None:
@@ -39,15 +42,30 @@ class GeminiClient(LLMClient):
     def complete(self, system: str, prompt: str, schema: dict) -> str:
         from google.genai import types
 
-        config = types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=0,
-            response_mime_type="application/json",
-            response_json_schema=inline_schema(schema),
-        )
+        def make_config(thinking: bool) -> types.GenerateContentConfig:
+            extra = {}
+            if thinking and self._thinking_level:
+                extra["thinking_config"] = types.ThinkingConfig(thinking_level=self._thinking_level)
+            return types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=0,
+                response_mime_type="application/json",
+                response_json_schema=inline_schema(schema),
+                **extra,
+            )
 
         def call() -> str:
-            resp = self._client.models.generate_content(model=self.model, contents=prompt, config=config)
+            try:
+                resp = self._client.models.generate_content(
+                    model=self.model, contents=prompt, config=make_config(True))
+            except Exception as exc:
+                # Модель не знает thinking_level: один раз повторяем без него.
+                if getattr(exc, "code", None) == 400 and "thinking" in str(exc).lower() and self._thinking_level:
+                    self._thinking_level = None
+                    resp = self._client.models.generate_content(
+                        model=self.model, contents=prompt, config=make_config(False))
+                else:
+                    raise
             return resp.text or ""
 
         kwargs = {"sleep": self._sleep} if self._sleep else {}

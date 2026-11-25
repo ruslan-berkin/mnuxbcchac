@@ -94,3 +94,10 @@ def test_fake_report_passes_self_check(tmp_path):
     swapped = render_report(rep).replace("## 6.", "## 9.")
     out.write_text(swapped, encoding="utf-8")
     assert any("Разделы отчёта" in e for e in sc.check_report(out))
+
+
+def test_multi_requirement_finding_described_once():
+    fs = [_f("major", crit="UNA", reqs=("R-01", "R-02"), q="общая цитата")]
+    text = render_report(make_report(findings=fs))
+    assert text.count("- **D-001**") == 1
+    assert "См. также D-001" in text

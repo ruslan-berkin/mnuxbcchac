@@ -51,8 +51,11 @@ class OpenAICompatClient(LLMClient):
                     model=self.model, messages=messages, temperature=0,
                     response_format={"type": "json_object"})
             except Exception as exc:
-                # Часть серверов не знает response_format: повторяем без него один раз.
-                if getattr(exc, "status_code", None) == 400 and "response_format" in str(exc):
+                # Сервер не знает response_format или не смог сам проверить JSON (бывает у Groq):
+                # повторяем без него один раз, невалидный ответ починит ремонтный запрос.
+                msg = str(exc)
+                if getattr(exc, "status_code", None) == 400 and (
+                        "response_format" in msg or "Failed to validate JSON" in msg):
                     resp = self._client.chat.completions.create(
                         model=self.model, messages=messages, temperature=0)
                 else:

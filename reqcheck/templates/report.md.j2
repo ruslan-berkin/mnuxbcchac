@@ -53,6 +53,10 @@
   - Проблема: {{ f.problem | inline }}
   - Как исправить: {{ f.fix | inline }}
 {% endfor %}
+{% for f in b.refs %}
+
+См. также {{ f.id }} (`{{ f.criterion }}`): подробно описано у {{ f.requirement_ids[0] }}.
+{% endfor %}
 {% endfor %}
 
 ## 4. {{ titles[3] }}
