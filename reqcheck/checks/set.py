@@ -11,7 +11,7 @@ from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import SetOut
 from reqcheck.models import Anchor, Document, Finding, Requirement
 from reqcheck.parallel import pmap
-from reqcheck.prompting import document_block, system_prompt
+from reqcheck.prompting import data_block, document_block, system_prompt
 
 log = logging.getLogger("reqcheck.set")
 
@@ -33,9 +33,10 @@ def _run_lens(
 ) -> tuple[list[Finding], dict[str, str], str | None]:
     known = {r.id for r in reqs}
     already = "\n".join(f"- [{f.criterion}] {f.problem[:160]}" for f in prior) or "(пока ничего)"
-    prompt = (f"Список требований, выделенных из документа (номера R-xx присвоены программой):\n"
-              f"{_listing(reqs)}\n\nФОКУС ПРОХОДА «{name}»:\n{focus}\n\n"
-              f"Уже найдено другими проходами (не повторяй):\n{already}\n\n{document_block(doc.full_text)}")
+    prompt = (f"Список требований, выделенных из документа (номера R-xx присвоены программой; данные):\n"
+              f"{data_block(_listing(reqs))}\n\nФОКУС ПРОХОДА «{name}»:\n{focus}\n\n"
+              f"Уже найдено другими проходами (не повторяй; данные):\n{data_block(already)}\n\n"
+              f"{document_block(doc.full_text)}")
     try:
         out = structured_call(client, system, prompt, SetOut, cache)
     except LLMValidationError as exc:
@@ -80,7 +81,7 @@ def check_set(
         conclusions.update(concl)
         if warn:
             warnings.append(warn)
-    for code in SET_CODES:
-        conclusions.setdefault(code, "Не проверено: сбой прохода проверки набора." if warnings
-                               else "Замечаний нет.")
+    final_failed = results[-1][2] is not None
+    if final_failed:  # без итогового прохода выводам по критериям верить нельзя
+        conclusions = {c: "Не проверено: итоговый проход проверки набора не выполнен." for c in SET_CODES}
     return findings, conclusions, warnings

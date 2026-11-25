@@ -6,12 +6,15 @@
 
 from __future__ import annotations
 
+import bisect
+import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from reqcheck.models import Anchor, Block, Document, Finding, Requirement, Severity
 
+log = logging.getLogger("reqcheck.lint")
 Rule = Callable[[Document, list[Requirement]], list[Finding]]
 
 
@@ -409,12 +412,21 @@ _UNIT_FAMILIES: list[tuple[str, re.Pattern[str], str, re.Pattern[str]]] = [
 _UNIT_WINDOW = 15
 
 
+def _near_pair(xs: list[int], ys: list[int], window: int) -> tuple[int, int] | None:
+    """Первая пара (x, y), где |x - y| <= window; xs и ys отсортированы. O((A+B) log B) вместо O(A·B)."""
+    for x in xs:
+        k = bisect.bisect_left(ys, x - window)
+        if k < len(ys) and ys[k] <= x + window:
+            return x, ys[k]
+    return None
+
+
 def rule_mixed_units(doc: Document, reqs: list[Requirement]) -> list[Finding]:
     out = []
     for name_a, pat_a, name_b, pat_b in _UNIT_FAMILIES:
         hits_a = [i for i, ln in enumerate(doc.lines, start=1) if pat_a.search(ln)]
         hits_b = [i for i, ln in enumerate(doc.lines, start=1) if pat_b.search(ln)]
-        pair = next(((a, b) for a in hits_a for b in hits_b if abs(a - b) <= _UNIT_WINDOW), None)
+        pair = _near_pair(hits_a, hits_b, _UNIT_WINDOW)
         if not pair:
             continue
         a, b = pair
@@ -451,8 +463,8 @@ def rule_http_method_verb(doc: Document, reqs: list[Requirement]) -> list[Findin
         method = (m.group(1) or m.group(2)).upper() if m else ""
         if method != "GET":
             continue
-        same = [n for n in range(1, len(doc.lines) + 1)
-                if secs.get(n) == secs.get(i) and n != i and abs(n - i) <= 25]
+        same = [n for n in range(max(1, i - 25), min(len(doc.lines), i + 25) + 1)
+                if secs.get(n) == secs.get(i) and n != i]
         hit = next((n for n in same
                     if _WRITE_VERB.search(doc.lines[n - 1]) or _URL_WRITE.search(doc.lines[n - 1])), None)
         if hit is None:
@@ -535,9 +547,8 @@ def rule_content_type_without_body(doc: Document, reqs: list[Requirement]) -> li
     for i, line in enumerate(doc.lines, start=1):
         if not re.search(r"content-type", line, re.IGNORECASE):
             continue
-        hit = next((n for n in range(1, len(doc.lines) + 1)
-                    if n != i and secs.get(n) == secs.get(i) and abs(n - i) <= 10
-                    and _NO_BODY.search(doc.lines[n - 1])), None)
+        hit = next((n for n in range(max(1, i - 10), min(len(doc.lines), i + 10) + 1)
+                    if n != i and secs.get(n) == secs.get(i) and _NO_BODY.search(doc.lines[n - 1])), None)
         if hit is None:
             continue
         out.append(_build(
@@ -612,11 +623,27 @@ def _heading_names(doc: Document) -> list[str]:
     return [n for n in names if n]
 
 
+_NUM_PREFIX = re.compile(r"^[\s|*#•\-]*(\d+(?:\.\d+)*)(?=[.\s)]|$)")
+
+
+def _known_numbers(doc: Document, headings: list[str]) -> set[str]:
+    """Номера разделов, начинающие строку или заголовок, вместе со всеми «родительскими» префиксами (1.2.3 → 1, 1.2)."""
+    out: set[str] = set()
+    for text in list(doc.lines) + headings:
+        m = _NUM_PREFIX.match(text)
+        if m:
+            parts = m.group(1).split(".")
+            out.update(".".join(parts[:k]) for k in range(1, len(parts) + 1))
+    return out
+
+
 def rule_dangling_references(doc: Document, reqs: list[Requirement]) -> list[Finding]:
     from reqcheck.ground import normalize
 
     headings = _heading_names(doc)
     norm_lines = [normalize(ln) for ln in doc.lines]
+    numbers = _known_numbers(doc, headings)
+    name_counts: dict[str, int] = {}
     out = []
     for block in doc.blocks:
         if _is_code_or_heading(block):
@@ -628,9 +655,7 @@ def rule_dangling_references(doc: Document, reqs: list[Requirement]) -> list[Fin
                 if _STANDARD_CONTEXT.search(sentence):
                     continue
                 num = m.group(1)
-                exists = any(re.match(rf"^{re.escape(num)}(?:[.\s)]|$)", h) for h in headings) or any(
-                    re.match(rf"^[\s|*#•\-]*{re.escape(num)}[.\s)]", ln) for ln in doc.lines)
-                if exists:
+                if num in numbers:
                     continue
                 out.append(_build(
                     doc, reqs, rule="dangling_references", req_code="CMP", set_code="S-TRC",
@@ -646,8 +671,9 @@ def rule_dangling_references(doc: Document, reqs: list[Requirement]) -> list[Fin
                     continue
                 if any(name in h or h in name for h in headings if len(h) >= 4):
                     continue
-                occurrences = sum(1 for ln in norm_lines if name in ln)
-                if occurrences >= 2:
+                if name not in name_counts:
+                    name_counts[name] = sum(1 for ln in norm_lines if name in ln)
+                if name_counts[name] >= 2:
                     continue
                 out.append(_build(
                     doc, reqs, rule="dangling_references", req_code="CMP", set_code="S-TRC",
@@ -657,6 +683,38 @@ def rule_dangling_references(doc: Document, reqs: list[Requirement]) -> list[Fin
                     fix="Приложить документ или раздел либо убрать ссылку и перенести нужные требования сюда.",
                     question=f"Где находится «{m.group(1)}» и можно ли получить его для проверки?",
                 ))
+    return out
+
+
+# --- попытки внедрить инструкции в документ (детерминированный пол вердикта)
+
+_INJECTION = re.compile(
+    r"(?i)(?:ignore|disregard|forget)\s+(?:all\s+|any\s+|the\s+)?(?:previous|prior|above|earlier)\s+"
+    r"(?:instructions?|rules?|prompts?)|"
+    r"игнорируй\w*\s+(?:все\s+|вс[её]\s+)?(?:предыдущ\w+|прежн\w+|вышестоящ\w+|системн\w+)\s+"
+    r"(?:инструкци\w+|правил\w+|указани\w+|промпт\w*)|"
+    r"system\s+prompt|системн\w+\s+промпт|you\s+are\s+now|ты\s+теперь|"
+    r"верни\s+пустой\s+список|не\s+сообщай\s+о\s+(?:дефект|замечани|проблем)\w*|"
+    r"return\s+an?\s+empty\s+(?:list|array)|<\s*/?\s*(?:document|data)\b")
+
+
+def rule_prompt_injection_markers(doc: Document, requirements: list[Requirement]) -> list[Finding]:
+    """Текст, похожий на команду ИИ-ассистенту. Это дефект документа, а не указание агенту."""
+    out = []
+    for i, line in enumerate(doc.lines, start=1):
+        m = _INJECTION.search(line)
+        if not m:
+            continue
+        term = m.group(0).strip()
+        out.append(_build(
+            doc, requirements, rule="prompt_injection_markers", req_code="COR", set_code="S-CMH",
+            severity="major", lines=[i], quotes=[_sentence_at(line, m.start())],
+            problem=f"В документе есть фрагмент, похожий на команду ИИ-ассистенту («{term}»). Агент считает "
+                    "документ данными и такие команды не выполняет; посторонняя вставка в требованиях — дефект "
+                    "документа и признак попытки повлиять на результат проверки.",
+            fix="Удалить постороннюю вставку из текста требований.",
+            question=f"Кто и зачем добавил в документ фрагмент «{term}»? Его нужно удалить?",
+        ))
     return out
 
 
@@ -677,11 +735,33 @@ RULES: list[Rule] = [
     rule_content_type_without_body,
     rule_field_type_mismatch,
     rule_dangling_references,
+    rule_prompt_injection_markers,
 ]
 
 
-def run_lint(doc: Document, requirements: list[Requirement]) -> list[Finding]:
+def run_lint_safe(
+    doc: Document, requirements: list[Requirement], per_rule_cap: int = 10**9
+) -> tuple[list[Finding], list[str], list[str]]:
+    """Каждое правило изолировано: сбой одного не роняет прогон.
+
+    Возвращает (замечания, упавшие правила, правила, обрезанные по лимиту замечаний).
+    """
     findings: list[Finding] = []
+    failed: list[str] = []
+    truncated: list[str] = []
     for rule in RULES:
-        findings.extend(rule(doc, requirements))
-    return findings
+        try:
+            found = rule(doc, requirements)
+        except Exception:  # noqa: BLE001 — правило не должно ронять оплаченный прогон
+            log.exception("lint: правило %s упало", rule.__name__)
+            failed.append(rule.__name__)
+            continue
+        if len(found) > per_rule_cap:
+            truncated.append(rule.__name__)
+            found = found[:per_rule_cap]
+        findings.extend(found)
+    return findings, failed, truncated
+
+
+def run_lint(doc: Document, requirements: list[Requirement]) -> list[Finding]:
+    return run_lint_safe(doc, requirements)[0]

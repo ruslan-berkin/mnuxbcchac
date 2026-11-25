@@ -13,7 +13,7 @@ from reqcheck.llm.base import LLMClient, LLMValidationError, structured_call
 from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import ConsolidateOut
 from reqcheck.models import Finding
-from reqcheck.prompting import system_prompt
+from reqcheck.prompting import data_block, system_prompt
 from reqcheck.summary import SEVERITY_RANK
 
 log = logging.getLogger("reqcheck.consolidate")
@@ -72,7 +72,7 @@ def consolidate(
             f"{f.id} [{f.criterion}, {f.severity}] требования: {','.join(f.requirement_ids) or '—'} | "
             f"цитата: {f.quotes[0][:140]} | проблема: {f.problem[:220]}" for f in part)
         try:
-            out = structured_call(client, system, f"Замечания:\n{listing}", ConsolidateOut, cache)
+            out = structured_call(client, system, f"Замечания (данные):\n{data_block(listing)}", ConsolidateOut, cache)
         except LLMValidationError as exc:
             log.error("consolidate: ответ не прошёл схему: %s", exc)
             warnings.append("Объединение дублей не выполнено: ответ модели не прошёл проверку схемы.")

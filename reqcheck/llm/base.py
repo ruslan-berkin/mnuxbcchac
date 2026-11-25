@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -16,6 +17,7 @@ from tenacity import Retrying, retry_if_exception, stop_after_attempt
 
 from reqcheck.errors import LLMUnavailableError
 from reqcheck.llm.cache import DiskCache
+from reqcheck.redact import redact
 
 log = logging.getLogger("reqcheck.llm")
 T = TypeVar("T", bound=BaseModel)
@@ -57,11 +59,16 @@ def inline_schema(schema: dict) -> dict:
     return walk(schema)
 
 
-_QUOTA = re.compile(r"insufficient_quota|no credits|add credits|billing", re.IGNORECASE)
+MAX_RETRY_AFTER = 120.0  # дольше провайдера не ждём: длинный retryDelay держал бы поток часами
+_QUOTA = re.compile(r"insufficient_quota|no credits remaining|per ?day|limit:\s*0\b", re.IGNORECASE)
 
 
 def is_quota_exhausted(exc: BaseException) -> bool:
-    """Баланс/квота закончились: повторять бессмысленно, провайдера надо отключить."""
+    """Баланс закончился или квота суточная/нулевая: повторять бессмысленно.
+
+    Обычный 429 «в минуту» (с retryDelay) сюда не попадает: его надо ждать и повторять.
+    Слово «billing» не признак: Gemini пишет его в каждом 429.
+    """
     return bool(_QUOTA.search(str(exc)))
 
 
@@ -84,7 +91,7 @@ def call_with_retries(
         exc = state.outcome.exception()
         _, retry_after = classify(exc)
         backoff = min(max_delay, base_delay * 2 ** (state.attempt_number - 1))
-        return max(retry_after or 0.0, backoff)
+        return max(min(retry_after or 0.0, MAX_RETRY_AFTER), backoff)
 
     def retryable(exc: BaseException) -> bool:
         return classify(exc)[0] and not is_quota_exhausted(exc)
@@ -101,10 +108,16 @@ def call_with_retries(
     try:
         return retrying(fn)
     except Exception as exc:
-        err = LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {str(exc)[:300]}")
+        err = LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {redact(str(exc)[:300])}")
         # True: провайдер «лёг» (лимиты/5xx не прошли после ретраев или закончились кредиты)
         err.transient = classify(exc)[0] or is_quota_exhausted(exc)
         raise err from exc
+
+
+def schema_fingerprint(schema: type[BaseModel]) -> str:
+    """Имя и хеш схемы: смена схемы не должна подхватывать старые записи кэша."""
+    body = json.dumps(schema.model_json_schema(), sort_keys=True, ensure_ascii=False)
+    return f"{schema.__name__}:{hashlib.sha256(body.encode()).hexdigest()[:12]}"
 
 
 def load_prompt(name: str) -> str:
@@ -130,15 +143,26 @@ def structured_call(
 
     В кэш попадают только валидные ответы.
     """
+    fingerprint = schema_fingerprint(schema)
+
     def key_for(provider: str, model: str) -> str:
-        return DiskCache.make_key(provider, model, system, prompt, schema.__name__)
+        return DiskCache.make_key(provider, model, system, prompt, fingerprint,
+                                  namespace=cache.namespace if cache is not None else "")
 
     if cache is not None:
         for prov, mod in client.cache_identities():
-            hit = cache.get(key_for(prov, mod))
-            if hit is not None:
-                log.info("LLM cache hit %s (%s/%s)", key_for(prov, mod)[:12], prov, mod)
-                return schema.model_validate_json(hit)
+            key = key_for(prov, mod)
+            hit = cache.get(key)
+            if hit is None:
+                continue
+            try:
+                parsed = schema.model_validate_json(hit)
+            except (ValidationError, ValueError):
+                log.warning("LLM cache: запись %s не подходит под схему %s, считаем промахом", key[:12], schema.__name__)
+                cache.delete(key)
+                continue
+            log.info("LLM cache hit %s (%s/%s)", key[:12], prov, mod)
+            return parsed
 
     json_schema = schema.model_json_schema()
     log.info("LLM вызов: %s, промпт %d симв.", schema.__name__, len(system) + len(prompt))
@@ -161,7 +185,10 @@ def structured_call(
             raise LLMValidationError(str(second_error)[:500]) from second_error
 
     if cache is not None:  # кладём под тем провайдером, который реально ответил
-        cache.put(key_for(client.provider, client.model), result.model_dump_json())
+        try:
+            cache.put(key_for(client.provider, client.model), result.model_dump_json())
+        except OSError as exc:  # диск полон, нет прав: оплаченный ответ не теряем
+            log.warning("LLM cache: не удалось записать (%s)", redact(exc))
     return result
 
 

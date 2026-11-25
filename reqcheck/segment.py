@@ -9,13 +9,15 @@ from __future__ import annotations
 import logging
 import re
 
+from reqcheck.errors import InputTooLargeError
 from reqcheck.ground import ground_requirements
+from reqcheck.limits import Limits
 from reqcheck.llm.base import LLMClient, LLMValidationError, structured_call
 from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import SegOut
 from reqcheck.models import Anchor, Document, Requirement, RequirementKind
 from reqcheck.parallel import pmap
-from reqcheck.prompting import document_block, system_prompt
+from reqcheck.prompting import data_block, document_block, system_prompt
 
 log = logging.getLogger("reqcheck.segment")
 CHUNK_CHARS = 24000
@@ -111,9 +113,14 @@ def chunks(doc: Document, max_chars: int = CHUNK_CHARS) -> list[str]:
 
 def segment(
     doc: Document, client: LLMClient | None, cache: DiskCache | None = None, workers: int = 1,
+    limits: Limits | None = None,
 ) -> tuple[list[Requirement], int, list[str]]:
     """Вернуть (требования R-01…, число отброшенных по цитате, предупреждения)."""
+    limits = limits or Limits()
     explicit = segment_explicit(doc)
+    if len(explicit) > limits.max_requirements:
+        raise InputTooLargeError(
+            f"В документе {len(explicit)} требований с номерами при лимите {limits.max_requirements}.")
     warnings: list[str] = []
     dropped = 0
     llm_reqs: list[Requirement] = []
@@ -122,7 +129,7 @@ def segment(
         system = system_prompt("segment")
         def run_chunk(arg):
             n, part = arg
-            prompt = (f"Уже найденные требования с номерами (не повторяй):\n{known}\n\n"
+            prompt = (f"Уже найденные требования с номерами (не повторяй; данные):\n{data_block(known)}\n\n"
                       f"Выдели остальные требования из документа.\n\n{document_block(part)}")
             try:
                 return n, structured_call(client, system, prompt, SegOut, cache)
@@ -151,6 +158,9 @@ def segment(
             continue
         seen_quotes.add(r.quote)
         merged.append(r)
+    if len(merged) > limits.max_requirements:
+        raise InputTooLargeError(
+            f"Выделено {len(merged)} требований при лимите {limits.max_requirements}.")
     log.info("segment: явных %d, от LLM %d, итого %d, отброшено по цитате %d",
              len(explicit), len(merged) - len(explicit), len(merged), dropped)
     return _renumber(merged), dropped, warnings

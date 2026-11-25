@@ -19,6 +19,7 @@ log = logging.getLogger("reqcheck.ground")
 
 FUZZY_THRESHOLD = 90.0
 MIN_FUZZY_LEN = 15
+MIN_QUOTE_LEN = 6  # «при», «все» находятся в любом документе и ничего не доказывают
 
 _QUOTES = {c: '"' for c in "«»“”„‟″'’‘`"}
 _DASHES = {c: "-" for c in "‐‑‒–—―−"}
@@ -31,6 +32,8 @@ def _norm_char(ch: str) -> str:
     ch = _QUOTES.get(ch, ch)
     ch = _DASHES.get(ch, ch)
     ch = ch.lower()
+    if len(ch) != 1:  # «İ».lower() даёт два символа и сдвинул бы карту позиций
+        ch = ch[0]
     return "е" if ch == "ё" else ch
 
 
@@ -68,8 +71,9 @@ class GroundMatch:
 class GroundIndex:
     """Нормализованный текст документа с отображением позиций обратно в строки."""
 
-    def __init__(self, doc: Document) -> None:
+    def __init__(self, doc: Document, max_fuzzy: int = 300) -> None:
         self.doc = doc
+        self._fuzzy_left = max_fuzzy  # fuzzy-поиск по всему документу дорог: бюджет на прогон
         chars: list[str] = []
         self.pos: list[tuple[int, int]] = []  # (индекс строки 0-based, индекс символа в строке)
         for li, line in enumerate(doc.lines):
@@ -104,7 +108,7 @@ class GroundIndex:
 
     def find(self, quote: str) -> GroundMatch | None:
         nq = normalize(clean_quote(quote))
-        if len(nq) < 3:
+        if len(nq) < MIN_QUOTE_LEN:
             return None
         i = self.text.find(nq)
         if i >= 0:
@@ -112,6 +116,10 @@ class GroundIndex:
             return GroundMatch("exact", 100.0, l0, l1, raw)
         if len(nq) < MIN_FUZZY_LEN:
             return None
+        if self._fuzzy_left <= 0:
+            log.warning("ground: исчерпан бюджет fuzzy-поиска, цитата %r не искалась", nq[:80])
+            return None
+        self._fuzzy_left -= 1
         al = fuzz.partial_ratio_alignment(nq, self.text, score_cutoff=FUZZY_THRESHOLD)
         if al is None or al.score < FUZZY_THRESHOLD or al.dest_end <= al.dest_start:
             return None
@@ -126,15 +134,17 @@ class GroundIndex:
         return Anchor(line_start=line_start, line_end=line_end)
 
 
-def ground_findings(doc: Document, findings: list[Finding]) -> tuple[list[Finding], int]:
-    """Вернуть (замечания с проверенными цитатами и якорями, число отброшенных)."""
+def ground_findings_detailed(
+    doc: Document, findings: list[Finding]
+) -> tuple[list[Finding], list[Finding]]:
+    """Вернуть (замечания с проверенными цитатами и якорями, отброшенные замечания)."""
     index = GroundIndex(doc)
     kept: list[Finding] = []
-    dropped = 0
+    dropped: list[Finding] = []
     for f in findings:
         matches = [index.find(q) for q in f.quotes] if f.quotes else []
         if not matches or any(m is None for m in matches):
-            dropped += 1
+            dropped.append(f)
             bad = [q for q, m in zip(f.quotes, matches) if m is None] or ["<нет цитат>"]
             log.warning("ground: отброшено замечание (%s, %s, %s): цитата не найдена в документе: %r",
                         f.source, f.criterion, ",".join(f.requirement_ids) or "набор", bad[0][:120])
@@ -148,6 +158,12 @@ def ground_findings(doc: Document, findings: list[Finding]) -> tuple[list[Findin
             "anchors": [index.anchor_for(m.line_start, m.line_end) for m in ms],
         }))
     return kept, dropped
+
+
+def ground_findings(doc: Document, findings: list[Finding]) -> tuple[list[Finding], int]:
+    """Вернуть (замечания с проверенными цитатами и якорями, число отброшенных)."""
+    kept, dropped = ground_findings_detailed(doc, findings)
+    return kept, len(dropped)
 
 
 def ground_requirements(doc: Document, reqs: list[Requirement]) -> tuple[list[Requirement], int]:

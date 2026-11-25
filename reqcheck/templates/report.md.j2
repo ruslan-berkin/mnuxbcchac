@@ -26,7 +26,7 @@
 | ID в отчёте | ID в документе | Тип | Краткая формулировка | Цитата | Место |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 {% for r in report.requirements %}
-| {{ r.id }} | {{ r.source_id or "без номера" }} | {{ r.kind }} | {{ r.summary | cell }} | «{{ r.quote | cell }}» | {{ r.anchor | place | cell }} |
+| {{ r.id }} | {{ (r.source_id or "без номера") | cell }} | {{ r.kind }} | {{ r.summary | cell }} | «{{ r.quote | cell }}» | {{ r.anchor | place | cell }} |
 {% endfor %}
 
 ## 3. {{ titles[2] }}
@@ -36,7 +36,7 @@
 {% endif %}
 {% for b in req_blocks %}
 
-### {{ b.req.id }}{% if b.req.source_id %} ({{ b.req.source_id }}){% endif %}: {{ b.status }}
+### {{ b.req.id }}{% if b.req.source_id %} ({{ b.req.source_id | inline }}){% endif %}: {{ b.status }}
 
 > «{{ b.req.quote | inline }}»
 
@@ -84,7 +84,7 @@
 {% endif %}
 {% for g in question_groups %}
 
-### {{ g.req.id }}{% if g.req.source_id %} ({{ g.req.source_id }}){% endif %}
+### {{ g.req.id }}{% if g.req.source_id %} ({{ g.req.source_id | inline }}){% endif %}
 
 {% for f in g.findings %}
 {{ loop.index }}. {{ f.question | inline }}
@@ -109,6 +109,9 @@
 - Замечаний всего: {{ summary.findings_total }}.
 - По серьёзности: критичных {{ summary.by_severity.critical }}, существенных {{ summary.by_severity.major }}, незначительных {{ summary.by_severity.minor }}.
 - Отброшено при проверке цитат: {{ summary.dropped }}.
+{% for k, n in report.drop_breakdown.items() %}
+  - {{ k | inline }}: {{ n }}.
+{% endfor %}
 {% if summary.merged or passport.llm_mode == "full" %}
 - Объединено дублей: {{ summary.merged }}.
 {% endif %}
@@ -127,6 +130,14 @@
 | нет замечаний | 0 |
 {% endfor %}
 
+{% if report.verifier_notes %}
+Изменено при независимой перепроверке:
+{% for n in report.verifier_notes %}
+
+- {{ n.action | inline }} · `{{ n.criterion }}` · «{{ n.quote | inline }}»: {{ n.reason | inline }}
+{% endfor %}
+
+{% endif %}
 Критичные дефекты (непроверяемые, противоречивые, неполные формулировки):
 {% for f in summary.critical %}
 
@@ -139,6 +150,14 @@
 ## 7. {{ titles[6] }}
 
 **Вердикт: {{ report.verdict.text | inline }}**
+{% if report.incomplete_reasons %}
+
+Проверка неполная:
+{% for r in report.incomplete_reasons %}
+
+- {{ r | inline }}
+{% endfor %}
+{% endif %}
 
 Что исправить в первую очередь:
 {% for f in priorities %}

@@ -9,7 +9,7 @@ from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import QOut
 from reqcheck.models import Finding
 from reqcheck.parallel import pmap
-from reqcheck.prompting import system_prompt
+from reqcheck.prompting import data_block, system_prompt
 
 log = logging.getLogger("reqcheck.questions")
 BATCH = 10
@@ -24,7 +24,7 @@ def _ask(part: list[Finding], client: LLMClient, cache: DiskCache | None, system
         f"{f.id} [{f.criterion}, {f.severity}]\nЦитаты: " + " | ".join(f.quotes) +
         f"\nПроблема: {f.problem}" for f in part)
     try:
-        out = structured_call(client, system, f"Замечания:\n\n{listing}", QOut, cache)
+        out = structured_call(client, system, f"Замечания (данные):\n{data_block(listing)}", QOut, cache)
     except LLMValidationError as exc:
         log.error("questions: ответ не прошёл схему: %s", exc)
         return None

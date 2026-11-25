@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from jinja2 import Environment, PackageLoader
 
 from reqcheck.criteria import CRITERIA, REQUIREMENT_CODES, SET_CODES
@@ -21,13 +23,22 @@ SECTION_TITLES = [
 REPORT_TITLE = "Отчёт о проверке требований"
 
 
+_MD_ESCAPE = re.compile(r"([\\`<>\[\]])")
+
+
+def md_escape(text: object) -> str:
+    """Недоверенный текст (цитаты, заголовки, ответы LLM) не должен стать разметкой: ни HTML-тегом,
+    ни ссылкой, ни картинкой, ни блоком кода. Экранируем \\ ` < > [ ]."""
+    return _MD_ESCAPE.sub(r"\\\1", str(text))
+
+
 def cell(text: object) -> str:
     """Безопасное значение для ячейки таблицы Markdown."""
-    return " ".join(str(text).split()).replace("|", "\\|")
+    return md_escape(" ".join(str(text).split())).replace("|", "\\|")
 
 
 def inline(text: object) -> str:
-    return " ".join(str(text).split())
+    return md_escape(" ".join(str(text).split()))
 
 
 def place(a: Anchor) -> str:
@@ -61,12 +72,17 @@ def _env() -> Environment:
 
 def requirement_status(report: Report, req: Requirement) -> tuple[str, list[Finding]]:
     items = [f for f in report.findings if f.scope == "requirement" and req.id in f.requirement_ids]
+    set_refs = [f for f in report.findings if f.scope == "set" and req.id in f.requirement_ids]
     if req.id in report.unchecked:
         return "⏳ не проверено", items
-    if any(f.severity == "critical" for f in items):
+    if any(f.severity == "critical" for f in items + set_refs):
         return "❌ есть критичные замечания", items
     if items:
         return "⚠️ есть замечания", items
+    if set_refs:
+        return "⚠️ есть замечания к набору (раздел 4)", items
+    if report.dropped_by_requirement.get(req.id):
+        return (f"⚠️ замечания были, но не прошли проверку цитат ({report.dropped_by_requirement[req.id]})", items)
     if report.passport.llm_mode == "lint-only":
         return "➖ LLM не проверяла, правила замечаний не нашли", items
     return "✅ без замечаний", items
@@ -79,8 +95,11 @@ def render_report(report: Report) -> str:
     for code in list(SET_CODES) + sorted({f.criterion for f in set_findings} - set(SET_CODES)):
         items = [f for f in set_findings if f.criterion == code]
         crit = CRITERIA[code]
-        if report.set_conclusions.get(code):
-            conclusion = report.set_conclusions[code]
+        stored = report.set_conclusions.get(code)
+        if stored and items and not stored.startswith("Не проверено"):
+            conclusion = f"Вывод модели: {stored} Всего замечаний по критерию: {len(items)}."
+        elif stored:
+            conclusion = stored
         elif items:
             conclusion = f"Найдено замечаний: {len(items)}."
         elif report.passport.llm_mode == "lint-only":

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from reqcheck.ground import normalize
@@ -31,27 +32,27 @@ def _same_requirements(a: Finding, b: Finding) -> bool:
     return not ra or not rb or bool(ra & rb)
 
 
-def _duplicates(a: Finding, b: Finding) -> bool:
-    """Тот же критерий, согласованные требования и общая цитата (одна содержит другую)."""
-    if a.criterion != b.criterion or not _same_requirements(a, b):
-        return False
-    qa = [normalize(q) for q in a.quotes]
-    qb = [normalize(q) for q in b.quotes]
-    return any(x and y and (x in y or y in x) for x in qa for y in qb)
-
-
 def _dedupe(findings: list[Finding]) -> list[Finding]:
-    kept: list[Finding] = []
+    """Дубль: тот же критерий, согласованные требования и общая цитата (одна содержит другую).
+
+    Цитаты нормализуются один раз на замечание, сравнение идёт только внутри критерия.
+    """
+    kept: list[tuple[Finding, list[str]]] = []
+    by_crit: dict[str, list[int]] = {}
     for f in findings:
-        i = next((k for k, g in enumerate(kept) if _duplicates(f, g)), None)
-        if i is None:
-            kept.append(f)
+        quotes = [q for q in (normalize(x) for x in f.quotes) if q]
+        dup = next((i for i in by_crit.get(f.criterion, [])
+                    if _same_requirements(f, kept[i][0])
+                    and any(x in y or y in x for x in quotes for y in kept[i][1])), None)
+        if dup is None:
+            by_crit.setdefault(f.criterion, []).append(len(kept))
+            kept.append((f, quotes))
             continue
-        old = kept[i]
+        old = kept[dup][0]
         # оставляем более серьёзное; при равенстве предпочитаем LLM (содержательнее формулировка)
         if (SEVERITY_RANK[f.severity], f.source != "llm") < (SEVERITY_RANK[old.severity], old.source != "llm"):
-            kept[i] = f
-    return kept
+            kept[dup] = (f, quotes)
+    return [f for f, _ in kept]
 
 
 def finalize_findings(findings: list[Finding]) -> list[Finding]:
@@ -62,20 +63,28 @@ def finalize_findings(findings: list[Finding]) -> list[Finding]:
     return [f.model_copy(update={"id": f"D-{i:03d}"}) for i, f in enumerate(unique, start=1)]
 
 
-def compute_verdict(findings: list[Finding], mode: LLMMode) -> Verdict:
+def compute_verdict(findings: list[Finding], mode: LLMMode, incomplete: Sequence[str] = ()) -> Verdict:
+    """Вердикт по правилам. Неполная проверка никогда не даёт «можно начинать»."""
     crit = sum(f.severity == "critical" for f in findings)
     major = sum(f.severity == "major" for f in findings)
+    note = ""
+    if incomplete:
+        note = " Проверка неполная: " + "; ".join(list(incomplete)[:5]) + "."
     if crit:
         v = Verdict(code="blocked",
-                    text=f"Нельзя начинать разработку без исправлений: критичных дефектов {crit}.")
+                    text=f"Нельзя начинать разработку без исправлений: критичных дефектов {crit}." + note)
     elif major:
         v = Verdict(code="caveats",
-                    text=f"Можно начинать с оговорками: критичных дефектов нет, существенных замечаний {major}.")
+                    text=f"Можно начинать с оговорками: критичных дефектов нет, существенных замечаний {major}." + note)
+    elif incomplete:
+        v = Verdict(code="incomplete",
+                    text="Вердикт «можно начинать» дать нельзя: проверка выполнена не полностью, "
+                         "а в проверенной части критичных и существенных замечаний нет." + note)
     else:
         v = Verdict(code="ok", text="Можно начинать разработку: критичных и существенных замечаний нет.")
     if mode == "lint-only":
-        v = Verdict(code=v.code, text=v.text + " Вердикт получен только по правилам без LLM "
-                    "и не заменяет полную проверку.")
+        v = Verdict(code=v.code if v.code != "ok" else "incomplete",
+                    text=v.text + " Вердикт получен только по правилам без LLM и не заменяет полную проверку.")
     return v
 
 

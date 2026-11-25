@@ -1,69 +1,83 @@
-"""Схемы ответов LLM по этапам (валидируются pydantic)."""
+"""Схемы ответов LLM по этапам.
+
+Строгие: обязательные поля без значений по умолчанию и запрет лишних ключей. Пустой или
+чужой по форме JSON (`{}`, `{"issues": []}`) не проходит как «замечаний нет», а идёт в ремонтный
+запрос и, если не помог, в «не проверено». Лимиты длины защищают от раздутых ответов.
+"""
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from reqcheck.criteria import CriterionCode
 from reqcheck.models import RequirementKind, Severity
 
+Short = Annotated[str, Field(max_length=800)]
+Quote = Annotated[str, Field(max_length=1500)]
+Text = Annotated[str, Field(max_length=2500)]
 
-class SegItem(BaseModel):
-    source_id: str | None = None
+
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class SegItem(_Strict):
+    source_id: Annotated[str, Field(max_length=60)] | None = None
     kind: RequirementKind = "other"
-    quote: str
-    summary: str
+    quote: Quote
+    summary: Short
 
 
-class SegOut(BaseModel):
-    requirements: list[SegItem] = Field(default_factory=list)
+class SegOut(_Strict):
+    requirements: Annotated[list[SegItem], Field(max_length=500)]
 
 
-class LLMFinding(BaseModel):
-    requirement_ids: list[str] = Field(default_factory=list)
+class LLMFinding(_Strict):
+    requirement_ids: Annotated[list[str], Field(max_length=40)] = Field(default_factory=list)
     criterion: CriterionCode
     severity: Severity
-    quotes: list[str] = Field(default_factory=list)
-    problem: str
-    fix: str
-    question: str | None = None
+    quotes: Annotated[list[Quote], Field(min_length=1, max_length=6)]
+    problem: Text
+    fix: Text
+    question: Short | None = None
 
 
-class EachOut(BaseModel):
-    findings: list[LLMFinding] = Field(default_factory=list)
+class EachOut(_Strict):
+    findings: Annotated[list[LLMFinding], Field(max_length=60)]
 
 
-class SetConclusion(BaseModel):
+class SetConclusion(_Strict):
     code: CriterionCode
-    conclusion: str
+    conclusion: Text
 
 
-class SetOut(BaseModel):
-    conclusions: list[SetConclusion] = Field(default_factory=list)
-    findings: list[LLMFinding] = Field(default_factory=list)
+class SetOut(_Strict):
+    conclusions: Annotated[list[SetConclusion], Field(max_length=20)]
+    findings: Annotated[list[LLMFinding], Field(max_length=80)]
 
 
-class QItem(BaseModel):
-    finding_id: str
-    question: str
+class QItem(_Strict):
+    finding_id: Annotated[str, Field(max_length=20)]
+    question: Short
 
 
-class QOut(BaseModel):
-    questions: list[QItem] = Field(default_factory=list)
+class QOut(_Strict):
+    questions: Annotated[list[QItem], Field(max_length=100)]
 
 
-class VerifyOut(BaseModel):
+class VerifyOut(_Strict):
     verdict: Literal["confirmed", "rejected"]
-    severity: Severity = "major"
-    reason: str = ""
+    # None: проверяющий серьёзность не назвал — остаётся исходная (не понижаем молча)
+    severity: Severity | None = None
+    reason: Text = ""
 
 
-class DupGroup(BaseModel):
-    ids: list[str]
-    primary: str
+class DupGroup(_Strict):
+    ids: Annotated[list[str], Field(max_length=40)]
+    primary: Annotated[str, Field(max_length=20)]
 
 
-class ConsolidateOut(BaseModel):
-    groups: list[DupGroup] = Field(default_factory=list)
+class ConsolidateOut(_Strict):
+    groups: Annotated[list[DupGroup], Field(max_length=100)]

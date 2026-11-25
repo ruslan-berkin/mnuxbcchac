@@ -34,8 +34,25 @@ def _clean(value: str | None) -> str | None:
     return value
 
 
+def load_env_file() -> None:
+    """Только для CLI: подхватить .env из текущей папки. Библиотечный код окружение не читает из файлов:
+    сервер задаёт настройки явно (переменные окружения процесса или Settings)."""
+    load_dotenv(find_dotenv(usecwd=True))
+
+
+def _check_model_allowed(model: str | None) -> None:
+    allow = [m.strip() for m in (os.getenv("REQCHECK_MODEL_ALLOWLIST") or "").split(",") if m.strip()]
+    if allow and model and model not in allow:
+        raise ValueError(f"Модель «{model}» не входит в список разрешённых (REQCHECK_MODEL_ALLOWLIST).")
+
+
 def load_settings(provider: str | None = None, model: str | None = None) -> Settings:
-    load_dotenv(find_dotenv(usecwd=True))  # .env берётся из текущей папки запуска
+    st = _load_settings(provider, model)
+    _check_model_allowed(st.model)
+    return st
+
+
+def _load_settings(provider: str | None = None, model: str | None = None) -> Settings:
     prov = (provider or os.getenv("LLM_PROVIDER") or "gemini").strip().lower()
     if prov == "gemini":
         return Settings(prov, model or _clean(os.getenv("GEMINI_MODEL")),

@@ -7,6 +7,7 @@ import threading
 
 from reqcheck.errors import LLMUnavailableError
 from reqcheck.llm.base import LLMClient
+from reqcheck.redact import redact
 
 log = logging.getLogger("reqcheck.llm")
 
@@ -44,7 +45,7 @@ class FallbackLLM(LLMClient):
             try:
                 text = c.complete(system, prompt, schema)
             except LLMUnavailableError as exc:
-                errors.append(f"{c.provider}/{c.model}: {exc}")
+                errors.append(f"{c.provider}/{c.model}: {redact(exc)}")
                 with self._lock:
                     if getattr(exc, "transient", False):
                         self._dead.add(i)  # лимит/сбой не прошли после ретраев: до конца прогона не трогаем
@@ -52,7 +53,7 @@ class FallbackLLM(LLMClient):
                     if nxt is not None:
                         msg = f"{c.provider}/{c.model} недоступен, переключение на {nxt.provider}/{nxt.model}"
                         if msg not in self.switches:
-                            log.warning("%s: %s", msg, str(exc)[:200])
+                            log.warning("%s: %s", msg, redact(str(exc)[:200]))
                             self.switches.append(msg)
                 continue
             with self._lock:

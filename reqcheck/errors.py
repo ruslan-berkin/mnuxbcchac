@@ -5,6 +5,7 @@ EXIT_BAD_INPUT = 2
 EXIT_EMPTY_TEXT = 3
 EXIT_NO_KEY = 4
 EXIT_LLM_UNAVAILABLE = 5
+EXIT_BUDGET = 6
 
 
 class ReqcheckError(Exception):
@@ -34,3 +35,13 @@ class LLMUnavailableError(ReqcheckError):
 
     exit_code = EXIT_LLM_UNAVAILABLE
     transient = False  # True: исчерпаны ретраи на лимиты/5xx (провайдер временно «лежит»)
+
+
+class InputTooLargeError(InputFileError):
+    """Документ превышает лимиты (размер, страницы, символы, число требований)."""
+
+
+class BudgetExceededError(ReqcheckError):
+    """Исчерпан бюджет прогона: число вызовов LLM, объём промптов или время."""
+
+    exit_code = EXIT_BUDGET
