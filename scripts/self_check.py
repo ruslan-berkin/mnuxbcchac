@@ -171,9 +171,59 @@ def check_repo() -> list[str]:
             for pat in SECRET_PATTERNS:
                 if re.search(pat, content):
                     errors.append(f"Похоже на секрет в {f} (шаблон {pat}).")
+    errors += check_readme()
+    if (ROOT / ".git").exists():
+        errors += check_history()
     env = ROOT / ".env.example"
     if env.is_file() and re.search(r"AIza|sk-[A-Za-z0-9]{10,}", env.read_text(encoding="utf-8")):
         errors.append(".env.example содержит реальный ключ.")
+    return errors
+
+
+README_MUST_MENTION = [
+    ("pip install", "установка зависимостей"),
+    (".env", "куда положить ключ"),
+    (".env.example", "пример конфига без ключа"),
+    ("python -m reqcheck", "команда запуска"),
+    ("reports/", "куда ляжет отчёт"),
+    ("aistudio.google.com", "как получить ключ LLM"),
+    ("модел", "какая модель использована"),
+    ("lint-only", "режим без ключа"),
+    ("Как устроен агент", "схема архитектуры"),
+    ("Ограничения", "ограничения"),
+]
+
+
+def check_readme() -> list[str]:
+    path = ROOT / "README.md"
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8").lower()
+    return [f"README: нет упоминания «{needle}» ({why})." for needle, why in README_MUST_MENTION
+            if needle.lower() not in text]
+
+
+def _git(*args: str) -> str:
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace").stdout
+
+
+def check_history() -> list[str]:
+    """История git: нет секретов, .env, трейлеров ассистента; автор один."""
+    errors: list[str] = []
+    if _git("log", "--all", "--name-only", "--format=", "--", ".env").strip():
+        errors.append("История: файл .env когда-то попадал в коммит.")
+    patch = _git("log", "-p", "--all")
+    for pat in SECRET_PATTERNS:
+        m = re.search(pat, patch)
+        if m:
+            errors.append(f"История: похоже на секрет (шаблон {pat}): {m.group(0)[:12]}…")
+    msgs = _git("log", "--all", "--format=%B")
+    if re.search(r"(?im)^co-authored-by:|generated with|claude\.ai/code", msgs):
+        errors.append("История: в сообщениях коммитов есть трейлеры или упоминания ассистента.")
+    names = {n for n in _git("log", "--all", "--format=%an").splitlines() if n.strip()}
+    if len(names) > 1:
+        errors.append(f"История: больше одного автора коммитов: {sorted(names)}.")
     return errors
 
 
