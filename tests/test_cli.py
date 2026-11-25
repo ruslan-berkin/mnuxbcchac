@@ -94,3 +94,26 @@ def test_pdf_end_to_end_passes_self_check(repo_root, tmp_path):
     out = tmp_path / "report.md"
     assert run(pdf, out, "--lint-only").exit_code == 0
     assert sc.check_report(out) == []
+
+
+def test_oversized_document_exits_2(tmp_path, monkeypatch):
+    monkeypatch.setenv("REQCHECK_MAX_FILE_BYTES", "50")
+    p = tmp_path / "big.txt"
+    p.write_text("строка " * 100, encoding="utf-8")
+    out = tmp_path / "r.md"
+    r = run(p, out, "--lint-only")
+    assert r.exit_code == 2 and not out.exists()
+
+
+def test_budget_exceeded_exits_6(sample_md, tmp_path, monkeypatch):
+    monkeypatch.setenv("REQCHECK_MAX_LLM_CALLS", "1")
+    r = run(sample_md, tmp_path / "r.md", "--provider", "fake", "--workers", "1", "--no-cache")
+    assert r.exit_code == 6, r.output
+
+
+def test_workers_above_eight_rejected(sample_md, tmp_path):
+    assert run(sample_md, tmp_path / "r.md", "--lint-only", "--workers", "50").exit_code == 2
+
+
+def test_report_path_equal_to_sidecar_rejected(sample_md, tmp_path):
+    assert run(sample_md, tmp_path / "report.json", "--lint-only").exit_code == 2

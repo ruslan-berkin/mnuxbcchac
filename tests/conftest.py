@@ -84,4 +84,4 @@ def empty_pdf(tmp_path: Path) -> Path:
 @pytest.fixture(autouse=True)
 def _no_dotenv(monkeypatch):
     """Тесты не читают настоящий .env: реальные ключи не должны попадать в прогоны."""
-    monkeypatch.setattr("reqcheck.config.load_dotenv", lambda *a, **k: None)
+    monkeypatch.setattr("reqcheck.cli.load_env_file", lambda: None)
