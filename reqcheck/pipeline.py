@@ -25,6 +25,7 @@ from reqcheck.checks.set import check_set
 from reqcheck.ground import ground_findings
 from reqcheck.llm.cache import DiskCache
 from reqcheck.models import Finding
+from reqcheck.parallel import default_workers
 from reqcheck.questions import ensure_questions
 from reqcheck.verify import verify_critical
 from reqcheck.segment import segment
@@ -85,6 +86,7 @@ def run(
     client: LLMClient | None = None,
     fallbacks: Sequence[Settings] = (),
     notes: Sequence[str] = (),
+    workers: int | None = None,
 ) -> Report:
     out = Path(output_path)
     json_path, log_path = sidecar_paths(out)
@@ -122,11 +124,12 @@ def run(
                  len(doc.lines), len(doc.blocks))
         log.info("Режим: %s", mode)
 
+        nworkers = workers if workers is not None else default_workers()
         cache = DiskCache() if (use_cache and mode == "full") else None
         if mode == "full":
-            log.info("LLM: %s / %s, кэш %s", client.provider, client.model, "вкл" if cache else "выкл")  # type: ignore[union-attr]
+            log.info("LLM: %s / %s, кэш %s, потоков %d", client.provider, client.model, "вкл" if cache else "выкл", nworkers)  # type: ignore[union-attr]
 
-        requirements, dropped_reqs, seg_warnings = segment(doc, client if mode == "full" else None, cache)
+        requirements, dropped_reqs, seg_warnings = segment(doc, client if mode == "full" else None, cache, nworkers)
         warnings.extend(seg_warnings)
         log.info("segment: требований %d", len(requirements))
         if not requirements:
@@ -137,9 +140,9 @@ def run(
         unchecked: dict[str, str] = {}
         conclusions: dict[str, str] = {}
         if mode == "full" and requirements:
-            each_findings, unchecked = check_each(doc, requirements, client, cache)  # type: ignore[arg-type]
+            each_findings, unchecked = check_each(doc, requirements, client, cache, nworkers)  # type: ignore[arg-type]
             log.info("check_each: замечаний %d, не проверено %d", len(each_findings), len(unchecked))
-            set_findings, conclusions, set_warnings = check_set(doc, requirements, client, cache)  # type: ignore[arg-type]
+            set_findings, conclusions, set_warnings = check_set(doc, requirements, client, cache, nworkers)  # type: ignore[arg-type]
             log.info("check_set: замечаний %d", len(set_findings))
             warnings.extend(set_warnings)
             findings += each_findings + set_findings
@@ -158,11 +161,11 @@ def run(
             warnings.extend(c_warnings)
             log.info("consolidate: слито дублей %d", merged)
             findings = finalize_findings(findings)
-            findings, rejected, v_warnings = verify_critical(doc, findings, client, cache)  # type: ignore[arg-type]
+            findings, rejected, v_warnings = verify_critical(doc, findings, client, cache, nworkers)  # type: ignore[arg-type]
             warnings.extend(v_warnings)
             log.info("verify: снято критичных %d", rejected)
             findings = finalize_findings(findings)  # перенумерация после снятых
-            findings, q_warnings = ensure_questions(findings, client, cache)  # type: ignore[arg-type]
+            findings, q_warnings = ensure_questions(findings, client, cache, nworkers)  # type: ignore[arg-type]
             warnings.extend(q_warnings)
         if unchecked:
             warnings.append(f"Не проверено LLM: {', '.join(sorted(unchecked))} (см. раздел 3).")

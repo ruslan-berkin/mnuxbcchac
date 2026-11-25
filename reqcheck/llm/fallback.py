@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from reqcheck.errors import LLMUnavailableError
 from reqcheck.llm.base import LLMClient
@@ -17,6 +18,7 @@ class FallbackLLM(LLMClient):
         assert clients
         self.clients = clients
         self._dead: set[int] = set()
+        self._lock = threading.Lock()  # complete() вызывается из нескольких потоков
         self._current = clients[0]
         self.used: list[tuple[str, str]] = []  # кто реально отвечал, в порядке первого ответа
         self.switches: list[str] = []
@@ -35,23 +37,28 @@ class FallbackLLM(LLMClient):
     def complete(self, system: str, prompt: str, schema: dict) -> str:
         errors: list[str] = []
         for i, c in enumerate(self.clients):
-            if i in self._dead:
+            with self._lock:
+                dead = i in self._dead
+            if dead:
                 continue
             try:
                 text = c.complete(system, prompt, schema)
             except LLMUnavailableError as exc:
                 errors.append(f"{c.provider}/{c.model}: {exc}")
-                if getattr(exc, "transient", False):
-                    self._dead.add(i)  # лимит/сбой не прошли после ретраев: до конца прогона не трогаем
-                nxt = next((x for j, x in enumerate(self.clients) if j > i and j not in self._dead), None)
-                if nxt is not None:
-                    msg = f"{c.provider}/{c.model} недоступен, переключение на {nxt.provider}/{nxt.model}"
-                    log.warning("%s: %s", msg, str(exc)[:200])
-                    self.switches.append(msg)
+                with self._lock:
+                    if getattr(exc, "transient", False):
+                        self._dead.add(i)  # лимит/сбой не прошли после ретраев: до конца прогона не трогаем
+                    nxt = next((x for j, x in enumerate(self.clients) if j > i and j not in self._dead), None)
+                    if nxt is not None:
+                        msg = f"{c.provider}/{c.model} недоступен, переключение на {nxt.provider}/{nxt.model}"
+                        if msg not in self.switches:
+                            log.warning("%s: %s", msg, str(exc)[:200])
+                            self.switches.append(msg)
                 continue
-            self._current = c
-            ident = (c.provider, c.model)
-            if ident not in self.used:
-                self.used.append(ident)
+            with self._lock:
+                self._current = c
+                ident = (c.provider, c.model)
+                if ident not in self.used:
+                    self.used.append(ident)
             return text
         raise LLMUnavailableError("Все провайдеры недоступны: " + "; ".join(errors))

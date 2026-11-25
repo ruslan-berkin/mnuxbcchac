@@ -14,6 +14,7 @@ from reqcheck.llm.base import LLMClient, LLMValidationError, structured_call
 from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import SegOut
 from reqcheck.models import Anchor, Document, Requirement, RequirementKind
+from reqcheck.parallel import pmap
 from reqcheck.prompting import document_block, system_prompt
 
 log = logging.getLogger("reqcheck.segment")
@@ -109,7 +110,7 @@ def chunks(doc: Document, max_chars: int = CHUNK_CHARS) -> list[str]:
 
 
 def segment(
-    doc: Document, client: LLMClient | None, cache: DiskCache | None = None,
+    doc: Document, client: LLMClient | None, cache: DiskCache | None = None, workers: int = 1,
 ) -> tuple[list[Requirement], int, list[str]]:
     """Вернуть (требования R-01…, число отброшенных по цитате, предупреждения)."""
     explicit = segment_explicit(doc)
@@ -119,15 +120,20 @@ def segment(
     if client is not None:
         known = "\n".join(f"- {r.source_id}: {r.summary[:100]}" for r in explicit) or "(нет)"
         system = system_prompt("segment")
-        for n, part in enumerate(chunks(doc), start=1):
+        def run_chunk(arg):
+            n, part = arg
             prompt = (f"Уже найденные требования с номерами (не повторяй):\n{known}\n\n"
                       f"Выдели остальные требования из документа.\n\n{document_block(part)}")
             try:
-                out = structured_call(client, system, prompt, SegOut, cache)
+                return n, structured_call(client, system, prompt, SegOut, cache)
             except LLMValidationError as exc:
                 msg = f"Сегментация LLM (часть {n}) не прошла проверку схемы: {exc}"
                 log.error(msg)
                 warnings.append(msg + ". Требования без номеров из этой части не выделены.")
+                return n, None
+
+        for _, out in pmap(run_chunk, list(enumerate(chunks(doc), start=1)), workers):
+            if out is None:
                 continue
             for item in out.requirements:
                 llm_reqs.append(Requirement(

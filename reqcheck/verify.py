@@ -8,6 +8,7 @@ from reqcheck.llm.base import LLMClient, LLMValidationError, structured_call
 from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import VerifyOut
 from reqcheck.models import Document, Finding
+from reqcheck.parallel import pmap
 from reqcheck.prompting import document_block, system_prompt
 from reqcheck.summary import SEVERITY_RANK
 
@@ -21,8 +22,20 @@ def needs_verification(f: Finding) -> bool:
     return f.source == "llm" and (f.severity == "critical" or f.criterion in VERIFY_CODES)
 
 
+def _verify_one(f: Finding, doc: Document, client: LLMClient, cache: DiskCache | None, system: str):
+    prompt = (f"Замечание {f.id} [{f.criterion}, {f.severity}]\nЦитаты:\n"
+              + "\n".join(f"- {q}" for q in f.quotes)
+              + f"\nПроблема: {f.problem}\nИсправление: {f.fix}\n\n{document_block(doc.full_text)}")
+    try:
+        return structured_call(client, system, prompt, VerifyOut, cache)
+    except LLMValidationError as exc:
+        log.error("verify: %s не перепроверено: %s", f.id, exc)
+        return None
+
+
 def verify_critical(
     doc: Document, findings: list[Finding], client: LLMClient, cache: DiskCache | None = None,
+    workers: int = 1,
 ) -> tuple[list[Finding], int, list[str]]:
     """Критичные замечания и утверждения о противоречиях (COR, S-CON) от LLM проверяются отдельным запросом.
 
@@ -30,20 +43,18 @@ def verify_critical(
     Если перепроверка не удалась, замечание остаётся (не теряем найденное), с предупреждением.
     """
     system = system_prompt("verify")
+    todo = [f for f in findings if needs_verification(f)]
+    verdicts = dict(zip((f.id for f in todo),
+                        pmap(lambda f: _verify_one(f, doc, client, cache, system), todo, workers)))
     out: list[Finding] = []
     rejected = 0
     warnings: list[str] = []
     for f in findings:
-        if not needs_verification(f):
+        if f.id not in verdicts:
             out.append(f)
             continue
-        prompt = (f"Замечание {f.id} [{f.criterion}, {f.severity}]\nЦитаты:\n"
-                  + "\n".join(f"- {q}" for q in f.quotes)
-                  + f"\nПроблема: {f.problem}\nИсправление: {f.fix}\n\n{document_block(doc.full_text)}")
-        try:
-            v = structured_call(client, system, prompt, VerifyOut, cache)
-        except LLMValidationError as exc:
-            log.error("verify: %s не перепроверено: %s", f.id, exc)
+        v = verdicts[f.id]
+        if v is None:
             warnings.append(f"Критичное замечание {f.id} не удалось перепроверить: оставлено без изменений.")
             out.append(f)
             continue

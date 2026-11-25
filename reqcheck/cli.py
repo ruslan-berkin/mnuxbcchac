@@ -30,6 +30,7 @@ def main(
     no_cache: Annotated[bool, typer.Option("--no-cache", help="Не использовать кэш ответов LLM.")] = False,
     require_llm: Annotated[bool, typer.Option("--require-llm", help="Ошибка (код 4), если нет ключа LLM.")] = False,
     lint_only: Annotated[bool, typer.Option("--lint-only", help="Только правила без LLM.")] = False,
+    workers: Annotated[Optional[int], typer.Option("--workers", min=1, help="Параллельных вызовов LLM (по умолчанию 4 или REQCHECK_WORKERS).")] = None,
     no_fallback: Annotated[bool, typer.Option("--no-fallback", help="Не переключаться на запасной провайдер.")] = False,
     version: Annotated[bool, typer.Option("--version", callback=_version, is_eager=True, help="Показать версию.")] = False,
 ) -> None:
@@ -40,7 +41,7 @@ def main(
     try:
         report = run(input_path, output_path, settings, lint_only=lint_only,
                      require_llm=require_llm, use_cache=not no_cache,
-                     fallbacks=fallbacks, notes=notes)
+                     fallbacks=fallbacks, notes=notes, workers=workers)
     except ReqcheckError as exc:
         typer.secho(f"Ошибка: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(exc.exit_code) from exc
