@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reqcheck"
+version = "0.1.0"
+description = "Агент статической проверки требований по ISO/IEC/IEEE 29148:2018 и IEEE 830-1998"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0",
+    "openai>=1.40",
+    "pydantic>=2.5",
+    "pymupdf>=1.24",
+    "python-docx>=1.1",
+    "jinja2>=3.1",
+    "tenacity>=8.2",
+    "typer>=0.12",
+    "rapidfuzz>=3.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "markdown>=3.5"]
+
+[project.scripts]
+reqcheck = "reqcheck.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["reqcheck*"]
+
+[tool.setuptools.package-data]
+reqcheck = ["templates/*.j2", "prompts/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
