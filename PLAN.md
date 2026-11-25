@@ -33,16 +33,16 @@
 
 ## Фаза 2. Мозги (26.11, до обеда)
 
-- [ ] `checks/lint.py`: все правила из CLAUDE.md §6, каждое с тестом.
-- [ ] `llm/gemini.py` (`google-genai`, structured output по JSON-схеме, `temperature=0`, ретраи).
-- [ ] `llm/openai_compat.py` (запасной провайдер).
-- [ ] `prompts/segment.md` + `segment.py` (гибрид regex + LLM, обязательная цитата).
-- [ ] `ground.py` + тесты (точное и fuzzy-совпадение, отбрасывание выдуманной цитаты).
-- [ ] `prompts/check_each.md` + `checks/each.py`.
-- [ ] `prompts/check_set.md` + `checks/set.py` (перекрёстные пары: ФТ↔приёмка, A↔B/API, данные↔API, НФТ↔цели, UI↔API).
-- [ ] Генерация уточняющих вопросов: к каждому `critical`/`major` замечанию и отдельно
+- [x] `checks/lint.py`: все правила из CLAUDE.md §6, каждое с тестом.
+- [x] `llm/gemini.py` (`google-genai`, structured output по JSON-схеме, `temperature=0`, ретраи).
+- [x] `llm/openai_compat.py` (запасной провайдер).
+- [x] `prompts/segment.md` + `segment.py` (гибрид regex + LLM, обязательная цитата).
+- [x] `ground.py` + тесты (точное и fuzzy-совпадение, отбрасывание выдуманной цитаты).
+- [x] `prompts/check_each.md` + `checks/each.py`.
+- [x] `prompts/check_set.md` + `checks/set.py` (перекрёстные пары: ФТ↔приёмка, A↔B/API, данные↔API, НФТ↔цели, UI↔API).
+- [x] Генерация уточняющих вопросов: к каждому `critical`/`major` замечанию и отдельно
       по пробелам набора.
-- [ ] Вердикт и «Что исправить в первую очередь» считаются кодом.
+- [x] Вердикт и «Что исправить в первую очередь» считаются кодом.
 - **Критерий готовности:** первый полный прогон на реальной модели проходит `self_check`.
 
 ## Фаза 3. Качество отчёта (26.11, после обеда)

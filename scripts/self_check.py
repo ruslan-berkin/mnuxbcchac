@@ -139,7 +139,7 @@ def check_report(path: Path) -> list[str]:
     return errors
 
 
-SECRET_PATTERNS = [r"AIza[0-9A-Za-z_\-]{30,}", r"sk-[A-Za-z0-9]{20,}", r"(?i)api[_-]?key\s*=\s*['\"]?[A-Za-z0-9_\-]{20,}"]
+SECRET_PATTERNS = [r"AIza[0-9A-Za-z_\-]{30,}", r"sk-[A-Za-z0-9]{20,}", r"(?i)api[_-]?key\s*=\s*['\"]?(?!your_)[A-Za-z0-9_\-]{20,}"]
 
 
 def check_repo() -> list[str]:
@@ -149,6 +149,9 @@ def check_repo() -> list[str]:
                  "reqcheck/templates/report.md.j2", "scripts/self_check.py"):
         if not (ROOT / name).is_file():
             errors.append(f"Нет файла {name}.")
+    for prompt in ("common", "segment", "check_each", "check_set", "questions", "repair"):
+        if not (ROOT / "reqcheck" / "prompts" / f"{prompt}.md").is_file():
+            errors.append(f"Нет промпта reqcheck/prompts/{prompt}.md.")
     gi = (ROOT / ".gitignore").read_text(encoding="utf-8") if (ROOT / ".gitignore").is_file() else ""
     for entry in (".env", ".cache/"):
         if not re.search(rf"(?m)^{re.escape(entry)}\s*$", gi):
