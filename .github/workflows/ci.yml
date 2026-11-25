@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit tests (fake LLM, без ключа)
+        run: python -m pytest
+      - name: Прогон без ключа на примере (PDF и MD)
+        run: |
+          python -m reqcheck examples/input/requirements.pdf /tmp/ci/report.md --lint-only
+          python scripts/self_check.py --report /tmp/ci/report.md
+          python -m reqcheck examples/input/requirements.md /tmp/ci/report_md.md --lint-only
+          python scripts/self_check.py --report /tmp/ci/report_md.md
+      - name: Проверка репозитория
+        run: python scripts/self_check.py --repo
