@@ -85,3 +85,4 @@ def empty_pdf(tmp_path: Path) -> Path:
 def _no_dotenv(monkeypatch):
     """Тесты не читают настоящий .env: реальные ключи не должны попадать в прогоны."""
     monkeypatch.setattr("reqcheck.cli.load_env_file", lambda: None)
+    monkeypatch.setenv("REQCHECK_SANDBOX", "0")  # быстрые тесты; песочница проверяется отдельно
