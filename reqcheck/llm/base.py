@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from importlib import resources
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
+from tenacity import Retrying, retry_if_exception, stop_after_attempt
 
 from reqcheck.errors import LLMUnavailableError
 from reqcheck.llm.cache import DiskCache
@@ -32,6 +35,58 @@ class LLMClient(ABC):
 
         Должен бросать LLMUnavailableError, если сервис недоступен после ретраев.
         """
+
+
+def inline_schema(schema: dict) -> dict:
+    """Развернуть $ref/$defs (pydantic) в плоскую JSON-схему, понятную всем провайдерам."""
+    defs = schema.get("$defs", {})
+
+    def walk(node):
+        if isinstance(node, dict):
+            if "$ref" in node:
+                return walk(defs[node["$ref"].rsplit("/", 1)[-1]])
+            return {k: walk(v) for k, v in node.items() if k not in ("$defs", "title", "default")}
+        if isinstance(node, list):
+            return [walk(x) for x in node]
+        return node
+
+    return walk(schema)
+
+
+# (retryable, retry_after_seconds)
+Classifier = Callable[[BaseException], tuple[bool, float | None]]
+
+
+def call_with_retries(
+    fn: Callable[[], str],
+    classify: Classifier,
+    *,
+    attempts: int = 5,
+    base_delay: float = 2.0,
+    max_delay: float = 60.0,
+    sleep: Callable[[float], None] = time.sleep,
+) -> str:
+    """Ретраи с экспоненциальным backoff на 429/5xx/таймаут; для 429 учитывается retry-after."""
+
+    def wait(state) -> float:
+        exc = state.outcome.exception()
+        _, retry_after = classify(exc)
+        backoff = min(max_delay, base_delay * 2 ** (state.attempt_number - 1))
+        return max(retry_after or 0.0, backoff)
+
+    retrying = Retrying(
+        stop=stop_after_attempt(attempts),
+        wait=wait,
+        retry=retry_if_exception(lambda e: classify(e)[0]),
+        sleep=sleep,
+        reraise=True,
+        before_sleep=lambda st: log.warning(
+            "LLM: попытка %d не удалась (%s), повтор", st.attempt_number, str(st.outcome.exception())[:200]),
+    )
+    try:
+        return retrying(fn)
+    except Exception as exc:
+        raise LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {str(exc)[:300]}") from exc
 
 
 def load_prompt(name: str) -> str:

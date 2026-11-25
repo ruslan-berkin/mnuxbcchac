@@ -10,10 +10,18 @@ from reqcheck.llm.fake import FakeLLM
 def build_client(settings: Settings) -> LLMClient:
     if settings.provider == "fake":
         return FakeLLM(model=settings.model or "fake-model")
-    # Реальные провайдеры (gemini, openai_compat) подключаются в Фазе 2.
-    raise LLMUnavailableError(
-        f"Провайдер «{settings.provider}» ещё не реализован в этой версии каркаса."
-    )
+    if not settings.has_key:
+        raise LLMUnavailableError("Не заданы ключ и ID модели для выбранного провайдера (см. .env.example).")
+    assert settings.api_key and settings.model
+    if settings.provider == "gemini":
+        from reqcheck.llm.gemini import GeminiClient
+
+        return GeminiClient(settings.api_key, settings.model)
+    if settings.provider == "openai_compat":
+        from reqcheck.llm.openai_compat import OpenAICompatClient
+
+        return OpenAICompatClient(settings.api_key, settings.model, settings.base_url)
+    raise LLMUnavailableError(f"Неизвестный провайдер «{settings.provider}».")
 
 
 __all__ = ["build_client", "LLMClient", "LLMValidationError", "FakeLLM", "DiskCache", "structured_call"]
