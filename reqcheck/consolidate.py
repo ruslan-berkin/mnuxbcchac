@@ -75,7 +75,7 @@ def consolidate(
             out = structured_call(client, system, f"Замечания (данные):\n{data_block(listing)}", ConsolidateOut, cache)
         except LLMValidationError as exc:
             log.error("consolidate: ответ не прошёл схему: %s", exc)
-            warnings.append("Объединение дублей не выполнено: ответ модели не прошёл проверку схемы.")
+            warnings.append(f"Объединение дублей не выполнено: {exc.human or 'ответ модели не прошёл проверку схемы'}.")
             continue
         used: set[str] = set()
         allowed = {f.id for f in part}

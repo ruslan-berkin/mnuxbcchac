@@ -32,6 +32,13 @@ def _same_requirements(a: Finding, b: Finding) -> bool:
     return not ra or not rb or bool(ra & rb)
 
 
+def _is_duplicate(f: Finding, quotes: list[str], other: tuple[Finding, list[str]]) -> bool:
+    g, gq = other
+    if f.fingerprint and g.fingerprint:  # оба от линтера: дубль только при равном отпечатке
+        return f.fingerprint == g.fingerprint
+    return _same_requirements(f, g) and any(x in y or y in x for x in quotes for y in gq)
+
+
 def _dedupe(findings: list[Finding]) -> list[Finding]:
     """Дубль: тот же критерий, согласованные требования и общая цитата (одна содержит другую).
 
@@ -41,9 +48,7 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     by_crit: dict[str, list[int]] = {}
     for f in findings:
         quotes = [q for q in (normalize(x) for x in f.quotes) if q]
-        dup = next((i for i in by_crit.get(f.criterion, [])
-                    if _same_requirements(f, kept[i][0])
-                    and any(x in y or y in x for x in quotes for y in kept[i][1])), None)
+        dup = next((i for i in by_crit.get(f.criterion, []) if _is_duplicate(f, quotes, kept[i])), None)
         if dup is None:
             by_crit.setdefault(f.criterion, []).append(len(kept))
             kept.append((f, quotes))
@@ -55,9 +60,14 @@ def _dedupe(findings: list[Finding]) -> list[Finding]:
     return [f for f, _ in kept]
 
 
-def finalize_findings(findings: list[Finding]) -> list[Finding]:
-    """Нормализация серьёзности, дедупликация, стабильная сортировка и нумерация D-001…"""
+def finalize_findings(findings: list[Finding], stats: dict[str, int] | None = None) -> list[Finding]:
+    """Нормализация серьёзности, дедупликация, стабильная сортировка и нумерация D-001….
+
+    stats["deduped"] накапливает число замечаний, склеенных как дубли (в отчёте оно видно).
+    """
     unique = _dedupe([normalize_severity(f) for f in findings])
+    if stats is not None:
+        stats["deduped"] = stats.get("deduped", 0) + len(findings) - len(unique)
     unique.sort(key=lambda f: (
         f.anchors[0].line_start if f.anchors else 0, SEVERITY_RANK[f.severity], f.criterion, f.problem))
     return [f.model_copy(update={"id": f"D-{i:03d}"}) for i, f in enumerate(unique, start=1)]

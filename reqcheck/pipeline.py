@@ -140,13 +140,17 @@ def run(
     if mode == "full" and client is None:
         if fallbacks:  # у основного меньше попыток, чтобы быстрее перейти к запасному
             chain = [settings, *fallbacks]
-            client = FallbackLLM([build_client(st, attempts=3 if i < len(chain) - 1 else 7)
+            client = FallbackLLM([build_client(st, attempts=3 if i < len(chain) - 1 else 4)
                                   for i, st in enumerate(chain)])
         else:
             client = build_client(settings)  # LLMUnavailableError → код 5
     llm: LLMClient | None = BudgetedLLM(client, budget) if (mode == "full" and client is not None) else None
 
     out.parent.mkdir(parents=True, exist_ok=True)
+    # Файлы прошлого прогона удаляем до начала работы: при сбое нового прогона они не должны
+    # выглядеть актуальными. Отчёт (.md) пишется последним и служит признаком успешного завершения.
+    out.unlink(missing_ok=True)
+    json_path.unlink(missing_ok=True)
     with run_log(log_path):
         log.info("Документ: %s (%s, %d строк, %d блоков)", doc.path, doc.format, len(doc.lines), len(doc.blocks))
         log.info("Режим: %s", mode)
@@ -176,7 +180,9 @@ def run(
         conclusions: dict[str, str] = {}
         llm_total = 0
         if mode == "full" and requirements:
-            each_findings, unchecked, discarded = check_each(doc, requirements, llm, cache, nworkers)  # type: ignore[arg-type]
+            each_findings, unchecked, discarded, each_notes = check_each(doc, requirements, llm, cache, nworkers)  # type: ignore[arg-type]
+            for n in each_notes:
+                warnings.append(f"Контекст раздела обрезан для проверки: {n}.")
             log.info("check_each: замечаний %d, не проверено %d, отброшено по ID/критерию %d",
                      len(each_findings), len(unchecked), discarded)
             if discarded:
@@ -202,7 +208,8 @@ def run(
                             f"{limits.max_lint_per_rule} от каждого: " + ", ".join(truncated) + ".")
         findings += lint_findings
 
-        findings, dropped_findings = ground_findings_detailed(doc, findings)
+        findings, dropped_findings = ground_findings_detailed(
+            doc, findings, {r.id: r.anchor.line_start for r in requirements})
         dropped = len(dropped_findings) + dropped_reqs
         by_req: dict[str, int] = {}
         for f in dropped_findings:
@@ -217,7 +224,10 @@ def run(
         if dropped_reqs:
             breakdown["сегментация: цитата требования не найдена в документе"] = dropped_reqs
 
-        findings = finalize_findings(findings)
+        dedupe_stats: dict[str, int] = {}
+        findings = finalize_findings(findings, dedupe_stats)
+        if dedupe_stats.get("deduped"):
+            breakdown["автоматически склеены дубли (тот же критерий и цитата)"] = dedupe_stats["deduped"]
         findings, cut = _cap_findings(findings, limits.max_findings)
         if cut:
             warnings.append(f"Замечаний больше лимита ({limits.max_findings}): показаны самые серьёзные, скрыто {cut}.")
@@ -283,8 +293,8 @@ def run(
             verdict=compute_verdict(findings, mode, incomplete if mode == "full" else ()),
             warnings=warnings,
         )
-        write_atomic(out, render_report(report))
         write_atomic(json_path, report.model_dump_json(indent=2))
+        write_atomic(out, render_report(report))  # последним: наличие .md значит, что прогон завершён
         log.info("Отчёт записан: %s", out)
         return report
 

@@ -87,12 +87,19 @@ def load_chain(
     names = [n.strip() for n in raw.split(",") if n.strip()] or [
         n for n in PROVIDERS if n not in (primary.provider, "fake")]
     others = []
+    explicit = bool(raw)
     for n in names:
-        if n == primary.provider or n not in PROVIDERS or n == "fake":
+        if n == primary.provider or n == "fake":
+            continue
+        if n not in PROVIDERS:
+            notes.append(f"Запасной провайдер «{n}» из LLM_FALLBACK пропущен: неизвестное имя "
+                         f"(допустимы: {', '.join(p for p in PROVIDERS if p != 'fake')}).")
             continue
         st = load_settings(n)
         if st.has_key:
             others.append(st)
+        elif explicit:
+            notes.append(f"Запасной провайдер «{n}» из LLM_FALLBACK пропущен: нет ключа или ID модели.")
     if not primary.has_key and others:
         notes.append(f"У основного провайдера «{primary.provider}» нет ключа или модели, "
                      f"использован «{others[0].provider}».")

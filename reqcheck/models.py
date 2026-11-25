@@ -67,6 +67,7 @@ class Finding(BaseModel):
     question: str | None = None
     source: Literal["llm", "lint"]
     rule: str | None = None  # имя правила линтера
+    fingerprint: str | None = None  # у замечаний линтера: правило + строка + суть; равные отпечатки — настоящий дубль
 
 
 class RunPassport(BaseModel):

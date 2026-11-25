@@ -42,7 +42,7 @@ def ensure_questions(
     parts = [todo[i:i + BATCH] for i in range(0, len(todo), BATCH)]
     for got in pmap(lambda part: _ask(part, client, cache, system), parts, workers):
         if got is None:
-            warnings.append("Часть уточняющих вопросов не сформирована: ответ модели не прошёл проверку схемы.")
+            warnings.append("Часть уточняющих вопросов не сформирована: ответ модели не прошёл проверку схемы или оборван.")
         else:
             answers.update(got)
     result = [f.model_copy(update={"question": answers[f.id]}) if f.id in answers else f for f in findings]

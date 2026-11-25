@@ -27,34 +27,40 @@ def batches(reqs: list[Requirement], size: int = BATCH) -> list[list[Requirement
     return out
 
 
-def section_context(doc: Document, section: str) -> str:
+def section_context(doc: Document, section: str) -> tuple[str, bool]:
+    """Текст раздела до лимита и признак, что он обрезан."""
     parts, size = [], 0
     for b in doc.blocks:
         if b.anchor.section == section:
             if size + len(b.text) > CONTEXT_CHARS:
-                break
+                return "\n".join(parts), True
             parts.append(b.text)
             size += len(b.text) + 1
-    return "\n".join(parts)
+    return "\n".join(parts), False
 
 
 def _check_batch(
     batch: list[Requirement], doc: Document, client: LLMClient, cache: DiskCache | None, system: str,
-) -> tuple[list[Finding], dict[str, str], int]:
+) -> tuple[list[Finding], dict[str, str], int, str | None]:
     findings: list[Finding] = []
     discarded = 0
     ids = {r.id for r in batch}
     section = batch[0].anchor.section or "(без раздела)"
     listing = "\n".join(f"{r.id} [{r.source_id or '—'}] ({r.kind}): {r.quote}" for r in batch)
-    prompt = (f"Контекст раздела:\n{document_block(section_context(doc, batch[0].anchor.section))}\n\n"
+    context, truncated = section_context(doc, batch[0].anchor.section)
+    cut_note = ("\nВНИМАНИЕ: контекст раздела обрезан по длине. Не сообщай об отсутствии сведений, "
+                "которые могли находиться в обрезанной части.\n" if truncated else "")
+    if truncated:
+        log.warning("check_each: контекст раздела «%s» обрезан до %d символов", section[:80], CONTEXT_CHARS)
+    prompt = (f"Контекст раздела:\n{document_block(context)}\n{cut_note}\n"
               f"Раздел и требования для проверки (данные):\n"
               f"{data_block(f'Раздел: {section[:200]}' + chr(10) + listing)}")
     try:
         out = structured_call(client, system, prompt, EachOut, cache)
     except LLMValidationError as exc:
-        reason = "ответ модели не прошёл проверку схемы даже после повторного запроса"
+        reason = exc.human or "ответ модели не прошёл проверку схемы даже после повторного запроса"
         log.error("check_each: %s для %s: %s", reason, sorted(ids), exc)
-        return [], {rid: reason for rid in ids}, 0
+        return [], {rid: reason for rid in ids}, 0, (f"раздел «{section[:60]}»: контекст обрезан" if truncated else None)
     for lf in out.findings:
         rids = [i for i in lf.requirement_ids if i in ids]
         if len(rids) != len(lf.requirement_ids):
@@ -72,19 +78,20 @@ def _check_batch(
     if out.findings and not findings and discarded:
         reason = "все замечания из ответа модели отброшены (ID вне пачки или критерий вне списка)"
         log.error("check_each: %s для %s", reason, sorted(ids))
-        return [], {rid: reason for rid in ids}, discarded
-    return findings, {}, discarded
+        return [], {rid: reason for rid in ids}, discarded, (f"раздел «{section[:60]}»: контекст обрезан" if truncated else None)
+    return findings, {}, discarded, (f"раздел «{section[:60]}»: контекст обрезан" if truncated else None)
 
 
 def check_each(
     doc: Document, reqs: list[Requirement], client: LLMClient, cache: DiskCache | None = None,
     workers: int = 1,
-) -> tuple[list[Finding], dict[str, str], int]:
-    """Вернуть (замечания, {R-xx: причина «не проверено»}, число отброшенных по ID/критерию). Батчи идут параллельно."""
+) -> tuple[list[Finding], dict[str, str], int, list[str]]:
+    """Вернуть (замечания, {R-xx: причина «не проверено»}, число отброшенных по ID/критерию, заметки). Батчи идут параллельно."""
     system = system_prompt("check_each", "requirement")
     results = pmap(lambda b: _check_batch(b, doc, client, cache, system), batches(reqs), workers)
-    findings = [f for fs, _, _ in results for f in fs]
+    findings = [f for fs, _, _, _ in results for f in fs]
     unchecked: dict[str, str] = {}
-    for _, u, _ in results:
+    for _, u, _, _ in results:
         unchecked.update(u)
-    return findings, unchecked, sum(d for _, _, d in results)
+    notes = sorted({n for _, _, _, n in results if n})
+    return findings, unchecked, sum(d for _, _, d, _ in results), notes

@@ -20,6 +20,7 @@ class FallbackLLM(LLMClient):
         self.clients = clients
         self._dead: set[int] = set()
         self._lock = threading.Lock()  # complete() вызывается из нескольких потоков
+        self._tls = threading.local()  # кто ответил на последний вызов в этом потоке
         self._current = clients[0]
         self.used: list[tuple[str, str]] = []  # кто реально отвечал, в порядке первого ответа
         self.switches: list[str] = []
@@ -31,6 +32,14 @@ class FallbackLLM(LLMClient):
     @property
     def model(self) -> str:  # type: ignore[override]
         return self._current.model
+
+    def last_identity(self) -> tuple[str, str]:
+        return getattr(self._tls, "identity", (self.provider, self.model))
+
+    def note_cache_hit(self, provider: str, model: str) -> None:
+        with self._lock:
+            if (provider, model) not in self.used:
+                self.used.append((provider, model))
 
     def cache_identities(self) -> list[tuple[str, str]]:
         return [ident for c in self.clients for ident in c.cache_identities()]
@@ -56,6 +65,7 @@ class FallbackLLM(LLMClient):
                             log.warning("%s: %s", msg, redact(str(exc)[:200]))
                             self.switches.append(msg)
                 continue
+            self._tls.identity = (c.provider, c.model)
             with self._lock:
                 self._current = c
                 ident = (c.provider, c.model)

@@ -134,7 +134,7 @@ def segment(
             try:
                 return n, structured_call(client, system, prompt, SegOut, cache)
             except LLMValidationError as exc:
-                msg = f"Сегментация LLM (часть {n}) не прошла проверку схемы: {exc}"
+                msg = f"Сегментация LLM (часть {n}) не выполнена: {exc.human or 'ответ модели не прошёл проверку схемы'}"
                 log.error(msg)
                 warnings.append(msg + ". Требования без номеров из этой части не выделены.")
                 return n, None
@@ -146,6 +146,9 @@ def segment(
                 llm_reqs.append(Requirement(
                     id="", source_id=item.source_id, kind=item.kind, quote=item.quote,
                     summary=item.summary, anchor=Anchor(line_start=1, line_end=1)))
+        if not llm_reqs and len(doc.lines) >= 30 and not warnings:
+            warnings.append("LLM не выделила ни одного требования без номера, хотя документ длиннее 30 строк: "
+                            "возможно, требования без ID (НФТ, данные, API, приёмка) не проверены.")
         llm_reqs, dropped = ground_requirements(doc, llm_reqs)
 
     taken = [(r.anchor.line_start, r.anchor.line_end) for r in explicit]

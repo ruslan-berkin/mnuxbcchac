@@ -29,6 +29,9 @@ class Limits:
     max_prompt_chars: int = 12_000_000
     deadline_s: float = 3600.0
     max_workers: int = 8
+    sandbox: bool = True  # PDF и DOCX разбираются в отдельном процессе с лимитами
+    parse_timeout_s: float = 60.0
+    parse_memory_mb: int = 2048
 
     @classmethod
     def from_env(cls) -> "Limits":
@@ -50,7 +53,7 @@ class Limits:
         return cls(max_file_bytes=5 * 1024 * 1024, max_uncompressed_bytes=50 * 1024 * 1024, max_pages=60,
                    max_chars=150_000, max_lines=8_000, max_requirements=120, max_findings=120,
                    max_verified=12, max_llm_calls=150, max_prompt_chars=2_500_000, deadline_s=600.0,
-                   max_workers=4)
+                   max_workers=4, parse_timeout_s=30.0, parse_memory_mb=1024)
 
 
 class Budget:
@@ -96,6 +99,12 @@ class BudgetedLLM(LLMClient):
 
     def cache_identities(self) -> list[tuple[str, str]]:
         return self.inner.cache_identities()
+
+    def last_identity(self) -> tuple[str, str]:
+        return self.inner.last_identity()
+
+    def note_cache_hit(self, provider: str, model: str) -> None:
+        self.inner.note_cache_hit(provider, model)
 
     def complete(self, system: str, prompt: str, schema: dict) -> str:
         self.budget.charge(len(system) + len(prompt))

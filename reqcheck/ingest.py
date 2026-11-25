@@ -39,7 +39,7 @@ def safe_display_name(name: str, limit: int = 120) -> str:
 def load_document(
     path: str | Path, limits: Limits | None = None, display_name: str | None = None,
 ) -> Document:
-    limits = limits or Limits()
+    limits = limits or Limits.from_env()
     p = Path(path)
     if not p.is_file():
         raise InputFileError(f"Файл не найден: {p.name}")
@@ -56,10 +56,12 @@ def load_document(
     warnings: list[str] = []
     incomplete: list[str] = []
     try:
-        if ext == ".pdf":
+        if ext in (".pdf", ".docx") and limits.sandbox:
+            lines, blocks, title = _parse_sandboxed(p, ext, limits, warnings, incomplete)
+        elif ext == ".pdf":
             lines, blocks, title = _read_pdf(p, limits, warnings, incomplete)
         elif ext == ".docx":
-            lines, blocks, title = _read_docx(p, limits)
+            lines, blocks, title = _read_docx(p, limits, warnings, incomplete)
         else:
             lines, blocks, title = _read_text(p, warnings)
     except (InputFileError, EmptyDocumentError):
@@ -289,7 +291,30 @@ def _in_tables(blk: dict, tables: list) -> bool:
 # ---------------------------------------------------------------- DOCX
 
 
-def _read_docx(p: Path, limits: Limits) -> tuple[list[str], list[Block], str]:
+def _docx_unread_parts(p: Path, d) -> list[str]:
+    """Что в DOCX осталось непрочитанным: колонтитулы, сноски, текстовые рамки."""
+    found: list[str] = []
+    try:
+        if any(par.text.strip() for sec in d.sections for part in (sec.header, sec.footer) for par in part.paragraphs):
+            found.append("колонтитулы")
+    except Exception:  # noqa: BLE001 — нестандартные секции: не роняем разбор
+        pass
+    try:
+        with zipfile.ZipFile(p) as z:
+            names = set(z.namelist())
+            for part, label in (("word/footnotes.xml", "сноски"), ("word/endnotes.xml", "концевые сноски")):
+                if part in names and re.search(rb"<w:t[ >][^<]{3,}", z.read(part)[:5_000_000]):
+                    found.append(label)
+            if b"w:txbxContent" in z.read("word/document.xml")[:20_000_000]:
+                found.append("текстовые рамки")
+    except Exception:  # noqa: BLE001
+        pass
+    return found
+
+
+def _read_docx(
+    p: Path, limits: Limits, warnings: list[str], incomplete: list[str]
+) -> tuple[list[str], list[Block], str]:
     import docx
     from docx.table import Table
     from docx.text.paragraph import Paragraph
@@ -327,4 +352,65 @@ def _read_docx(p: Path, limits: Limits) -> tuple[list[str], list[Block], str]:
                     if not cells or cells[-1] != t or t == "":  # склеенные ячейки не дублируем
                         cells.append(t)
                 add("| " + " | ".join(cells) + " |")
+    skipped = _docx_unread_parts(p, d)
+    if skipped:
+        warnings.append("В DOCX есть содержимое, которое агент не читает: " + ", ".join(skipped) + ".")
+        incomplete.append("часть содержимого DOCX не прочитана: " + ", ".join(skipped))
     return lines, blocks, title
+
+
+
+# ---------------------------------------------------------------- изоляция парсера
+
+
+def _parse_sandboxed(
+    p: Path, ext: str, limits: Limits, warnings: list[str], incomplete: list[str]
+) -> tuple[list[str], list[Block], str]:
+    """Разбор PDF/DOCX в отдельном процессе: таймаут, лимит памяти и CPU, окружение без ключей и сети-секретов.
+
+    Парсеры (pymupdf, python-docx/lxml) — главная поверхность атаки при загрузке файлов пользователями.
+    """
+    import json
+    import os
+    import subprocess
+    import sys
+
+    pkg_parent = str(Path(__file__).resolve().parent.parent)
+    env = {"PATH": os.environ.get("PATH", ""), "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"}  # без API-ключей
+
+    def limit_resources() -> None:  # только POSIX; на macOS RLIMIT_AS может не действовать
+        try:
+            import resource
+
+            resource.setrlimit(resource.RLIMIT_CPU, (int(limits.parse_timeout_s) + 5,) * 2)
+            mem = limits.parse_memory_mb * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
+        except (ImportError, ValueError, OSError):
+            pass
+
+    cmd = [sys.executable, "-m", "reqcheck.parse_worker", str(p), ext, json.dumps(limits.__dict__)]
+    try:
+        proc = subprocess.run(cmd, cwd=pkg_parent, env=env, capture_output=True, timeout=limits.parse_timeout_s,
+                              preexec_fn=limit_resources if os.name == "posix" else None)  # noqa: PLW1509
+    except subprocess.TimeoutExpired as exc:
+        raise InputTooLargeError(
+            f"Разбор {p.name} занял больше {limits.parse_timeout_s:g} с: файл слишком сложный.") from exc
+    out = proc.stdout
+    if len(out) > 80 * 1024 * 1024:
+        raise InputTooLargeError(f"Результат разбора {p.name} слишком велик.")
+    try:
+        data = json.loads(out.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        log.warning("ingest: процесс разбора завершился с кодом %s без ответа", proc.returncode)
+        raise InputFileError(
+            f"Не удалось разобрать {p.name}: процесс разбора завершился аварийно (возможно, не хватило памяти).") from exc
+    if not data.get("ok"):
+        kind, message = data.get("kind"), data.get("message", "")
+        if kind == "too_large":
+            raise InputTooLargeError(message)
+        if kind == "empty":
+            raise EmptyDocumentError(message)
+        raise InputFileError(message or f"Не удалось прочитать {p.name}.")
+    warnings.extend(data["warnings"])
+    incomplete.extend(data["incomplete"])
+    return data["lines"], [Block.model_validate(b) for b in data["blocks"]], data["title"]

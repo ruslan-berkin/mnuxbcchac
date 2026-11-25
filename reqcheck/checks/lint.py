@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import bisect
+import hashlib
 import logging
 import re
 from collections.abc import Callable
@@ -66,6 +67,10 @@ def _iter_hits(doc: Document, patterns: list[_Pattern]):
                     yield block, block.anchor.line_start + offset, line, m, p.severity
 
 
+def _fingerprint(rule: str, lines: list[int], text: str) -> str:
+    return hashlib.sha1(f"{rule}|{sorted(set(lines))}|{text}".encode("utf-8")).hexdigest()[:16]
+
+
 def _make(
     *, rule: str, req_code: str, set_code: str, severity: Severity, block: Block, line_no: int,
     line: str, m: re.Match[str], requirements: list[Requirement],
@@ -88,6 +93,7 @@ def _make(
         question=question.format(**fmt),
         source="lint",
         rule=rule,
+        fingerprint=_fingerprint(rule, [line_no], term + problem.format(**fmt)),
     )
 
 
@@ -213,6 +219,7 @@ def _build(
         quotes=quotes if quotes is not None else [_line(doc, n) for n in lines],
         anchors=[_anchor(doc, n) for n in lines],
         problem=problem, fix=fix, question=question, source="lint", rule=rule,
+        fingerprint=_fingerprint(rule, lines, problem),
     )
 
 

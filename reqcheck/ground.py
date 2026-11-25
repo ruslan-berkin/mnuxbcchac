@@ -19,6 +19,7 @@ log = logging.getLogger("reqcheck.ground")
 
 FUZZY_THRESHOLD = 90.0
 MIN_FUZZY_LEN = 15
+SHORT_QUOTE_LEN = 12  # короче этого искать только целыми словами
 MIN_QUOTE_LEN = 6  # «при», «все» находятся в любом документе и ничего не доказывают
 
 _QUOTES = {c: '"' for c in "«»“”„‟″'’‘`"}
@@ -106,12 +107,30 @@ class GroundIndex:
             raw = " ".join([lines[l0][c0:]] + lines[l0 + 1:l1] + [lines[l1][:c1 + 1]])
         return l0 + 1, l1 + 1, " ".join(raw.split())
 
-    def find(self, quote: str) -> GroundMatch | None:
+    def _occurrences(self, nq: str) -> list[int]:
+        """Позиции точных вхождений (не больше 200); короткие цитаты только по границам слов."""
+        out, start = [], 0
+        while len(out) < 200:
+            i = self.text.find(nq, start)
+            if i < 0:
+                break
+            start = i + 1
+            if len(nq) < SHORT_QUOTE_LEN:
+                before = self.text[i - 1] if i > 0 else " "
+                after = self.text[i + len(nq)] if i + len(nq) < len(self.text) else " "
+                if before.isalnum() or after.isalnum():
+                    continue
+            out.append(i)
+        return out
+
+    def find(self, quote: str, near_line: int | None = None) -> GroundMatch | None:
+        """Найти цитату. Если вхождений несколько, берётся ближайшее к near_line, иначе первое."""
         nq = normalize(clean_quote(quote))
         if len(nq) < MIN_QUOTE_LEN:
             return None
-        i = self.text.find(nq)
-        if i >= 0:
+        occ = self._occurrences(nq)
+        if occ:
+            i = occ[0] if near_line is None else min(occ, key=lambda k: abs(self.pos[k][0] + 1 - near_line))
             l0, l1, raw = self._span(i, i + len(nq))
             return GroundMatch("exact", 100.0, l0, l1, raw)
         if len(nq) < MIN_FUZZY_LEN:
@@ -135,14 +154,21 @@ class GroundIndex:
 
 
 def ground_findings_detailed(
-    doc: Document, findings: list[Finding]
+    doc: Document, findings: list[Finding], req_lines: dict[str, int] | None = None
 ) -> tuple[list[Finding], list[Finding]]:
     """Вернуть (замечания с проверенными цитатами и якорями, отброшенные замечания)."""
     index = GroundIndex(doc)
     kept: list[Finding] = []
     dropped: list[Finding] = []
     for f in findings:
-        matches = [index.find(q) for q in f.quotes] if f.quotes else []
+        # Повторяющаяся фраза привязывается к ближайшему вхождению: у замечаний линтера это их строка,
+        # у остальных строка первого требования; иначе первое вхождение.
+        if f.source == "lint" and f.anchors:
+            nears = [a.line_start for a in f.anchors] + [f.anchors[0].line_start] * len(f.quotes)
+        else:
+            near = (req_lines or {}).get(f.requirement_ids[0]) if f.requirement_ids else None
+            nears = [near] * len(f.quotes)
+        matches = [index.find(q, nears[i]) for i, q in enumerate(f.quotes)] if f.quotes else []
         if not matches or any(m is None for m in matches):
             dropped.append(f)
             bad = [q for q, m in zip(f.quotes, matches) if m is None] or ["<нет цитат>"]

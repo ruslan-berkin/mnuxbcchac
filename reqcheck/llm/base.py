@@ -24,7 +24,22 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class LLMValidationError(Exception):
-    """Ответ модели не прошёл схему даже после повторного запроса."""
+    """Ответ модели не прошёл схему даже после повторного запроса (или не мог быть получен целиком).
+
+    `human` — понятная причина для отчёта (обрезан по длине, заблокирован фильтром); None — просто не по схеме.
+    """
+
+    def __init__(self, message: str = "", human: str | None = None) -> None:
+        super().__init__(message)
+        self.human = human
+
+
+class LLMTruncatedError(Exception):
+    """Провайдер вернул неполный или заблокированный ответ (длина, фильтр безопасности)."""
+
+
+class EmptyResponseError(Exception):
+    """Провайдер вернул пустой ответ (нет choices/candidates или пустой текст): повторяем как сбой сервиса."""
 
 
 class LLMClient(ABC):
@@ -34,6 +49,13 @@ class LLMClient(ABC):
     def cache_identities(self) -> list[tuple[str, str]]:
         """Под какими (провайдер, модель) искать ответ в кэше."""
         return [(self.provider, self.model)]
+
+    def last_identity(self) -> tuple[str, str]:
+        """Кто ответил на последний вызов в ЭТОМ потоке (для ключа кэша и паспорта)."""
+        return self.provider, self.model
+
+    def note_cache_hit(self, provider: str, model: str) -> None:
+        """Ответ взят из кэша под этой идентичностью: клиенты с цепочкой запоминают это для паспорта."""
 
     @abstractmethod
     def complete(self, system: str, prompt: str, schema: dict) -> str:
@@ -107,6 +129,8 @@ def call_with_retries(
     )
     try:
         return retrying(fn)
+    except LLMTruncatedError:
+        raise  # не сбой сервиса: повторять бессмысленно, причина нужна как есть
     except Exception as exc:
         err = LLMUnavailableError(f"LLM недоступна после {attempts} попыток: {redact(str(exc)[:300])}")
         # True: провайдер «лёг» (лимиты/5xx не прошли после ретраев или закончились кредиты)
@@ -162,6 +186,7 @@ def structured_call(
                 cache.delete(key)
                 continue
             log.info("LLM cache hit %s (%s/%s)", key[:12], prov, mod)
+            client.note_cache_hit(prov, mod)
             return parsed
 
     json_schema = schema.model_json_schema()
@@ -172,13 +197,18 @@ def structured_call(
     except LLMUnavailableError:
         log.error("LLM вызов не удался за %.0f с: %s", time.monotonic() - t0, schema.__name__)
         raise
+    except LLMTruncatedError as exc:  # повтор того же запроса даст то же: ремонт не запускаем
+        raise LLMValidationError(str(exc), human=str(exc)) from exc
     log.info("LLM ответ: %s за %.0f с, %d симв.", schema.__name__, time.monotonic() - t0, len(raw))
     try:
         result = _parse(raw, schema)
     except (ValidationError, json.JSONDecodeError) as first_error:
         log.warning("Невалидный ответ LLM, повторный запрос: %s", str(first_error)[:300])
         repair = load_prompt("repair").format(error=str(first_error)[:1500], previous=raw[:4000])
-        raw2 = client.complete(system, f"{prompt}\n\n{repair}", json_schema)
+        try:
+            raw2 = client.complete(system, f"{prompt}\n\n{repair}", json_schema)
+        except LLMTruncatedError as exc:
+            raise LLMValidationError(str(exc), human=str(exc)) from exc
         try:
             result = _parse(raw2, schema)
         except (ValidationError, json.JSONDecodeError) as second_error:
@@ -186,7 +216,7 @@ def structured_call(
 
     if cache is not None:  # кладём под тем провайдером, который реально ответил
         try:
-            cache.put(key_for(client.provider, client.model), result.model_dump_json())
+            cache.put(key_for(*client.last_identity()), result.model_dump_json())
         except OSError as exc:  # диск полон, нет прав: оплаченный ответ не теряем
             log.warning("LLM cache: не удалось записать (%s)", redact(exc))
     return result

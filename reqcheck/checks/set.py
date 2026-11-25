@@ -40,7 +40,7 @@ def _run_lens(
     try:
         out = structured_call(client, system, prompt, SetOut, cache)
     except LLMValidationError as exc:
-        msg = f"Проход «{name}» проверки набора не выполнен: ответ модели не прошёл проверку схемы."
+        msg = f"Проход «{name}» проверки набора не выполнен: {exc.human or 'ответ модели не прошёл проверку схемы'}."
         log.error("%s %s", msg, exc)
         return [], {}, msg
     findings: list[Finding] = []

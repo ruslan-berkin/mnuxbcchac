@@ -15,6 +15,16 @@ def _thinking_level() -> str | None:
     return None if v in ("", "default", "none") else v
 
 
+def _max_out() -> int | None:
+    import os
+
+    try:
+        v = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "") or 0)
+    except ValueError:
+        return None
+    return v if v > 0 else None
+
+
 def build_client(settings: Settings, attempts: int = 7) -> LLMClient:
     if settings.provider == "fake":
         return FakeLLM(model=settings.model or "fake-model")
@@ -25,16 +35,18 @@ def build_client(settings: Settings, attempts: int = 7) -> LLMClient:
         from reqcheck.llm.gemini import GeminiClient
 
         return GeminiClient(settings.api_key, settings.model, attempts=attempts,
-                            thinking_level=_thinking_level())
+                            thinking_level=_thinking_level(), max_output_tokens=_max_out())
     if settings.provider == "groq":
         from reqcheck.llm.openai_compat import OpenAICompatClient
 
         return OpenAICompatClient(settings.api_key, settings.model, settings.base_url,
-                                  provider="groq", attempts=attempts)
+                                  provider="groq", attempts=attempts,
+                                  max_output_tokens=_max_out())
     if settings.provider == "openai_compat":
         from reqcheck.llm.openai_compat import OpenAICompatClient
 
-        return OpenAICompatClient(settings.api_key, settings.model, settings.base_url, attempts=attempts)
+        return OpenAICompatClient(settings.api_key, settings.model, settings.base_url, attempts=attempts,
+                                  max_output_tokens=_max_out())
     raise LLMUnavailableError(f"Неизвестный провайдер «{settings.provider}».")
 
 

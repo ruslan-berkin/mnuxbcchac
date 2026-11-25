@@ -11,6 +11,7 @@ from reqcheck import __version__
 from reqcheck.config import load_chain, load_env_file
 from reqcheck.errors import ReqcheckError
 from reqcheck.pipeline import run, sidecar_paths
+from reqcheck.redact import redact
 
 app = typer.Typer(add_completion=False, help="Статическая проверка требований по ISO/IEC/IEEE 29148 и IEEE 830.")
 
@@ -47,6 +48,10 @@ def main(
     except ReqcheckError as exc:
         typer.secho(f"Ошибка: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(exc.exit_code) from exc
+    except Exception as exc:  # noqa: BLE001 — непредвиденное: короткое сообщение и определённый код, без трейсбэка с секретами
+        typer.secho(f"Внутренняя ошибка ({type(exc).__name__}): {redact(str(exc))[:300]}. "
+                    "Подробности в .log рядом с отчётом.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
 
     for w in report.warnings:
         typer.secho(f"Предупреждение: {w}", fg=typer.colors.YELLOW, err=True)
