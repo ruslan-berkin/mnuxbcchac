@@ -5,9 +5,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-PROVIDERS = ("gemini", "openai_compat", "fake")
+PROVIDERS = ("gemini", "groq", "openai_compat", "fake")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 
 @dataclass(frozen=True)
@@ -34,11 +35,15 @@ def _clean(value: str | None) -> str | None:
 
 
 def load_settings(provider: str | None = None, model: str | None = None) -> Settings:
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))  # .env берётся из текущей папки запуска
     prov = (provider or os.getenv("LLM_PROVIDER") or "gemini").strip().lower()
     if prov == "gemini":
         return Settings(prov, model or _clean(os.getenv("GEMINI_MODEL")),
                         _clean(os.getenv("GEMINI_API_KEY")))
+    if prov == "groq":
+        return Settings(prov, model or _clean(os.getenv("GROQ_MODEL")),
+                        _clean(os.getenv("GROQ_API_KEY")),
+                        _clean(os.getenv("GROQ_BASE_URL")) or GROQ_BASE_URL)
     if prov == "openai_compat":
         return Settings(prov, model or _clean(os.getenv("OPENAI_MODEL")),
                         _clean(os.getenv("OPENAI_API_KEY")), _clean(os.getenv("OPENAI_BASE_URL")))

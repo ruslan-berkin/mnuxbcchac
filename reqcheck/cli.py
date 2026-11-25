@@ -25,7 +25,7 @@ def _version(value: bool) -> None:
 def main(
     input_path: Annotated[Path, typer.Argument(metavar="ТРЕБОВАНИЯ", help="PDF, DOCX, MD или TXT с требованиями.")],
     output_path: Annotated[Path, typer.Argument(metavar="ОТЧЁТ", help="Куда записать отчёт (.md). Рядом лягут .json и .log.")],
-    provider: Annotated[Optional[str], typer.Option(help="gemini | openai_compat | fake (по умолчанию из LLM_PROVIDER).")] = None,
+    provider: Annotated[Optional[str], typer.Option(help="gemini | groq | openai_compat | fake (по умолчанию из LLM_PROVIDER).")] = None,
     model: Annotated[Optional[str], typer.Option(help="ID модели (по умолчанию из .env).")] = None,
     no_cache: Annotated[bool, typer.Option("--no-cache", help="Не использовать кэш ответов LLM.")] = False,
     require_llm: Annotated[bool, typer.Option("--require-llm", help="Ошибка (код 4), если нет ключа LLM.")] = False,

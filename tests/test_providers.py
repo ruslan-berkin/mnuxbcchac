@@ -123,3 +123,18 @@ def test_build_client_factory(monkeypatch):
     with pytest.raises(LLMUnavailableError):
         build_client(Settings("gemini", None, None))
     assert base.LLMUnavailableError is LLMUnavailableError
+
+
+def test_groq_preset(monkeypatch):
+    from reqcheck.config import GROQ_BASE_URL, load_settings
+    from reqcheck.llm import build_client
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    monkeypatch.setenv("GROQ_MODEL", "some-model")
+    monkeypatch.delenv("GROQ_BASE_URL", raising=False)
+    st = load_settings("groq")
+    assert st.has_key and st.base_url == GROQ_BASE_URL
+    c = build_client(st)
+    assert c.provider == "groq" and c.model == "some-model"
+    monkeypatch.setenv("GROQ_API_KEY", "your_groq_api_key_here")
+    assert not load_settings("groq").has_key  # заглушка из .env.example не считается ключом

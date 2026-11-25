@@ -26,7 +26,9 @@ class OpenAICompatClient(LLMClient):
     provider = "openai_compat"
 
     def __init__(self, api_key: str, model: str, base_url: str | None = None, *, client=None,
-                 timeout_s: float = 120.0, attempts: int = 5, sleep=None) -> None:
+                 timeout_s: float = 120.0, attempts: int = 5, sleep=None,
+                 provider: str = "openai_compat") -> None:
+        self.provider = provider
         self.model = model
         self._attempts = attempts
         self._sleep = sleep

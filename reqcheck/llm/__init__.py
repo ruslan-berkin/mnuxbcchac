@@ -17,6 +17,10 @@ def build_client(settings: Settings) -> LLMClient:
         from reqcheck.llm.gemini import GeminiClient
 
         return GeminiClient(settings.api_key, settings.model)
+    if settings.provider == "groq":
+        from reqcheck.llm.openai_compat import OpenAICompatClient
+
+        return OpenAICompatClient(settings.api_key, settings.model, settings.base_url, provider="groq")
     if settings.provider == "openai_compat":
         from reqcheck.llm.openai_compat import OpenAICompatClient
 

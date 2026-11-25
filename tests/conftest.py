@@ -79,3 +79,9 @@ def empty_pdf(tmp_path: Path) -> Path:
     p = tmp_path / "empty.pdf"
     doc.save(str(p))
     return p
+
+
+@pytest.fixture(autouse=True)
+def _no_dotenv(monkeypatch):
+    """Тесты не читают настоящий .env: реальные ключи не должны попадать в прогоны."""
+    monkeypatch.setattr("reqcheck.config.load_dotenv", lambda *a, **k: None)
