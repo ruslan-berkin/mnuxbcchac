@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt -c constraints.txt
       - name: Unit tests (fake LLM, без ключа)
         run: python -m pytest
       - name: Прогон без ключа на примере (PDF и MD)
@@ -29,3 +29,14 @@ jobs:
           python scripts/self_check.py --report /tmp/ci/report_md.md
       - name: Проверка репозитория
         run: python scripts/self_check.py --repo
+
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # уязвимости в зависимостях видны в отчёте, но не блокируют сборку
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      - run: pip-audit -r requirements.txt
