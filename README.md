@@ -70,7 +70,7 @@ python -m reqcheck examples/input/requirements.pdf reports/report.md --provider 
 Модель и провайдер записываются в **паспорт прогона** (раздел 1 отчёта) вместе с датой, SHA-256
 входного файла и версией агента (тег или коммит; пометка `dirty`, если в дереве были правки).
 Отчёт в `reports/report.md` получен моделью **`gpt-6.2-sol` (OpenAI, `openai_compat`)**, версия агента
-`v1.1`. Агент проверен также на Gemini (`gemini-3.1-flash-lite`) и Groq (`openai/gpt-oss-120b`).
+`v1.2`. Агент проверен также на Gemini (`gemini-3.1-flash-lite`) и Groq (`openai/gpt-oss-120b`).
 Модель выбирает команда: подойдёт любая, которая умеет отвечать JSON по схеме.
 
 ## Режим без ключа

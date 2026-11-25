@@ -370,3 +370,23 @@ def test_cli_unexpected_error_exits_1_with_redacted_message(sample_md, tmp_path,
     monkeypatch.setattr("reqcheck.cli.run", boom)
     r = CliRunner().invoke(app, [str(sample_md), str(tmp_path / "r.md"), "--lint-only"])
     assert r.exit_code == 1 and "Внутренняя ошибка (RuntimeError)" in r.output and "sk-proj-AAAA" not in r.output
+
+
+def test_agent_version_is_computed_before_report_files_are_touched(tmp_path, monkeypatch):
+    """Закоммиченный отчёт перезаписывается при повторном прогоне: версия не должна становиться «dirty»."""
+    import reqcheck.pipeline as pl
+
+    out = tmp_path / "r.md"
+    doc = make_clean(tmp_path)
+    run(doc, out, SETTINGS, lint_only=True)  # «закоммиченный» отчёт от прошлого прогона
+    seen = {}
+
+    def fake_version():
+        seen["report_existed"] = out.exists() and out.with_suffix(".json").exists()
+        seen["log_existed"] = out.with_suffix(".log").exists()
+        return "v9.9"
+
+    monkeypatch.setattr(pl, "agent_version", fake_version)
+    rep = run(doc, out, SETTINGS, lint_only=True)
+    assert seen == {"report_existed": True, "log_existed": True}  # ничего ещё не удалено и не пересоздано
+    assert rep.passport.agent_version == "v9.9"

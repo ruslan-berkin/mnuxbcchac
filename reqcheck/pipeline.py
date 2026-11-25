@@ -146,6 +146,9 @@ def run(
             client = build_client(settings)  # LLMUnavailableError → код 5
     llm: LLMClient | None = BudgetedLLM(client, budget) if (mode == "full" and client is not None) else None
 
+    # Версию агента считаем ДО того, как трогаем файлы отчёта: если отчёт закоммичен в репозитории,
+    # его удаление и перезапись не должны делать паспорт «dirty».
+    version = agent_version()
     out.parent.mkdir(parents=True, exist_ok=True)
     # Файлы прошлого прогона удаляем до начала работы: при сбое нового прогона они не должны
     # выглядеть актуальными. Отчёт (.md) пишется последним и служит признаком успешного завершения.
@@ -274,7 +277,7 @@ def run(
             run_datetime=_now(),
             model_provider=provider_name,
             model_id=model_name,
-            agent_version=agent_version(),
+            agent_version=version,
             llm_mode=mode,
         )
         report = Report(
