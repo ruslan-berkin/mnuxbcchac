@@ -25,6 +25,7 @@ from reqcheck.ground import ground_findings
 from reqcheck.llm.cache import DiskCache
 from reqcheck.models import Finding
 from reqcheck.questions import ensure_questions
+from reqcheck.verify import verify_critical
 from reqcheck.segment import segment
 from reqcheck.summary import compute_verdict, finalize_findings
 
@@ -105,7 +106,7 @@ def run(
     if mode == "full" and client is None:
         if fallbacks:  # у основного меньше попыток, чтобы быстрее перейти к запасному
             chain = [settings, *fallbacks]
-            client = FallbackLLM([build_client(st, attempts=3 if i < len(chain) - 1 else 5)
+            client = FallbackLLM([build_client(st, attempts=3 if i < len(chain) - 1 else 7)
                                   for i, st in enumerate(chain)])
         else:
             client = build_client(settings)  # LLMUnavailableError → код 5
@@ -137,10 +138,9 @@ def run(
         if mode == "full" and requirements:
             each_findings, unchecked = check_each(doc, requirements, client, cache)  # type: ignore[arg-type]
             log.info("check_each: замечаний %d, не проверено %d", len(each_findings), len(unchecked))
-            set_findings, conclusions, set_warning = check_set(doc, requirements, client, cache)  # type: ignore[arg-type]
+            set_findings, conclusions, set_warnings = check_set(doc, requirements, client, cache)  # type: ignore[arg-type]
             log.info("check_set: замечаний %d", len(set_findings))
-            if set_warning:
-                warnings.append(set_warning)
+            warnings.extend(set_warnings)
             findings += each_findings + set_findings
         lint_findings = run_lint(doc, requirements)
         log.info("lint: замечаний %d", len(lint_findings))
@@ -150,7 +150,12 @@ def run(
         dropped += dropped_reqs
         log.info("ground: отброшено %d (в том числе требований %d)", dropped, dropped_reqs)
         findings = finalize_findings(findings)
+        rejected = 0
         if mode == "full":
+            findings, rejected, v_warnings = verify_critical(doc, findings, client, cache)  # type: ignore[arg-type]
+            warnings.extend(v_warnings)
+            log.info("verify: снято критичных %d", rejected)
+            findings = finalize_findings(findings)  # перенумерация после снятых
             findings, q_warnings = ensure_questions(findings, client, cache)  # type: ignore[arg-type]
             warnings.extend(q_warnings)
         if unchecked:
@@ -181,6 +186,7 @@ def run(
             requirements=requirements,
             findings=findings,
             dropped_count=dropped,
+            verifier_rejected=rejected,
             unchecked=unchecked,
             set_conclusions=conclusions,
             verdict=compute_verdict(findings, mode),

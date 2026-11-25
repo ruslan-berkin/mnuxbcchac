@@ -88,6 +88,7 @@ class Report(BaseModel):
     requirements: list[Requirement]
     findings: list[Finding]
     dropped_count: int = 0
+    verifier_rejected: int = 0  # критичные замечания, снятые перепроверкой
     verdict: Verdict
     # R-xx -> причина, по которой LLM-проверка не удалась («не проверено»)
     unchecked: dict[str, str] = Field(default_factory=dict)

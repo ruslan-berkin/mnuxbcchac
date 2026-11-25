@@ -129,7 +129,14 @@ def structured_call(
                 return schema.model_validate_json(hit)
 
     json_schema = schema.model_json_schema()
-    raw = client.complete(system, prompt, json_schema)
+    log.info("LLM вызов: %s, промпт %d симв.", schema.__name__, len(system) + len(prompt))
+    t0 = time.monotonic()
+    try:
+        raw = client.complete(system, prompt, json_schema)
+    except LLMUnavailableError:
+        log.error("LLM вызов не удался за %.0f с: %s", time.monotonic() - t0, schema.__name__)
+        raise
+    log.info("LLM ответ: %s за %.0f с, %d симв.", schema.__name__, time.monotonic() - t0, len(raw))
     try:
         result = _parse(raw, schema)
     except (ValidationError, json.JSONDecodeError) as first_error:

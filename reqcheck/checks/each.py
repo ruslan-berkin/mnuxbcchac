@@ -48,7 +48,7 @@ def check_each(
         ids = {r.id for r in batch}
         section = batch[0].anchor.section or "(без раздела)"
         listing = "\n".join(
-            f"{r.id} [{r.source_id or 'без номера'}] ({r.kind}): {r.quote}" for r in batch)
+            f"{r.id} [{r.source_id or '—'}] ({r.kind}): {r.quote}" for r in batch)
         prompt = (f"Раздел документа: «{section}»\n\nКонтекст раздела:\n"
                   f"{document_block(section_context(doc, batch[0].anchor.section))}\n\n"
                   f"Требования для проверки:\n{listing}")

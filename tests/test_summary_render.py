@@ -101,3 +101,19 @@ def test_multi_requirement_finding_described_once():
     text = render_report(make_report(findings=fs))
     assert text.count("- **D-001**") == 1
     assert "См. также D-001" in text
+
+
+def test_dedupe_across_sources_with_shared_quote_and_empty_requirements():
+    llm = _f("major", crit="S-CON", reqs=(), q="REST type | GET", scope="set")
+    lint = _f("major", crit="S-CON", reqs=("R-02",), q="REST type | GET", scope="set").model_copy(
+        update={"quotes": ["REST type | GET", "Description | Сохранение"]})
+    llm = llm.model_copy(update={"source": "llm"})
+    out = finalize_findings([lint, llm])
+    assert len(out) == 1 and out[0].source == "llm"  # при равной серьёзности берём LLM
+
+
+def test_dedupe_keeps_different_criteria_and_different_quotes():
+    a = _f("major", crit="S-CON", reqs=(), q="первая цитата", scope="set")
+    b = _f("major", crit="S-CMP", reqs=(), q="первая цитата", scope="set")
+    c = _f("major", crit="S-CON", reqs=(), q="совсем другая", scope="set")
+    assert len(finalize_findings([a, b, c])) == 3

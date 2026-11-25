@@ -45,16 +45,20 @@ def make_doc(tmp_path, text=DOC):
 
 def stage(system: str) -> str:
     for key, name in [("СЕГМЕНТАЦИЯ", "segment"), ("ПРОВЕРКА ОТДЕЛЬНЫХ", "each"),
-                      ("ПРОВЕРКА НАБОРА", "set"), ("УТОЧНЯЮЩИЕ ВОПРОСЫ", "questions")]:
+                      ("ПРОВЕРКА НАБОРА", "set"), ("УТОЧНЯЮЩИЕ ВОПРОСЫ", "questions"),
+                      ("НЕЗАВИСИМАЯ ПЕРЕПРОВЕРКА", "verify")]:
         if key in system:
             return name
     raise AssertionError("неизвестный этап")
 
 
-def scripted(seg=None, each=None, set_=None, questions=None):
+CONFIRM = {"verdict": "confirmed", "severity": "critical", "reason": "ok"}
+
+
+def scripted(seg=None, each=None, set_=None, questions=None, verify=CONFIRM):
     def handler(system, prompt):
         s = stage(system)
-        data = {"segment": seg, "each": each, "set": set_, "questions": questions}[s]
+        data = {"segment": seg, "each": each, "set": set_, "questions": questions, "verify": verify}[s]
         value = data(prompt) if callable(data) else data
         return value if isinstance(value, str) else json.dumps(value if value is not None else {}, ensure_ascii=False)
     return FakeLLM(handler=handler)
@@ -239,3 +243,80 @@ def test_injection_cannot_suppress_findings_or_verdict(tmp_path, fixtures):
     assert any(f.source == "lint" for f in rep.findings)
     assert rep.verdict.code in ("caveats", "blocked")
     assert "можно начинать»" not in rep.verdict.text
+
+
+def one_critical_flow(tmp_path, verify):
+    each = {"findings": [finding(["R-01"], "VER", "critical", ["Система создаёт заказ за 2 секунды после оплаты."]),
+                         finding(["R-02"], "UNA", "major", ["Система отправляет письмо клиенту."])]}
+    llm = scripted(seg={"requirements": []}, each=each, set_={"findings": [], "conclusions": []}, verify=verify)
+    return run(make_doc(tmp_path), tmp_path / "r.md", SETTINGS, client=llm, use_cache=False), llm
+
+
+def test_verifier_rejects_false_critical_and_renumbers(tmp_path):
+    rep, llm = one_critical_flow(tmp_path, {"verdict": "rejected", "severity": "major", "reason": "исключение в Ф-2"})
+    assert rep.verifier_rejected == 1
+    llm_f = [f for f in rep.findings if f.source == "llm"]
+    assert [f.criterion for f in llm_f] == ["UNA"]
+    ids = [f.id for f in rep.findings]
+    assert ids == [f"D-{i:03d}" for i in range(1, len(ids) + 1)]  # нумерация без дыр
+    assert "снято при независимой перепроверке: 1" in (tmp_path / "r.md").read_text(encoding="utf-8")
+
+
+def test_verifier_can_downgrade_but_not_raise(tmp_path):
+    rep, _ = one_critical_flow(tmp_path, {"verdict": "confirmed", "severity": "major", "reason": "не блокирует"})
+    sev = {f.criterion: f.severity for f in rep.findings if f.source == "llm"}
+    assert sev["VER"] == "major" and rep.verifier_rejected == 0
+    rep, _ = one_critical_flow(tmp_path, {"verdict": "confirmed", "severity": "critical", "reason": "ок"})
+    assert {f.criterion: f.severity for f in rep.findings if f.source == "llm"}["VER"] == "critical"
+
+
+def test_verifier_failure_keeps_finding_with_warning(tmp_path):
+    rep, _ = one_critical_flow(tmp_path, "не json")
+    assert any(f.criterion == "VER" and f.severity == "critical" for f in rep.findings)
+    assert any("не удалось перепроверить" in w for w in rep.warnings)
+
+
+def test_verifier_runs_only_for_llm_critical(tmp_path):
+    _, llm = one_critical_flow(tmp_path, CONFIRM)
+    verify_calls = [c for c in llm.calls if "НЕЗАВИСИМАЯ ПЕРЕПРОВЕРКА" in c[0]]
+    assert len(verify_calls) == 1  # lint-замечания и major не перепроверяются
+
+
+def test_set_check_runs_all_lenses_and_fills_conclusions(tmp_path):
+    from reqcheck.checks.set import load_lenses
+
+    names = [n for n, _ in load_lenses()]
+    assert names == ["acceptance", "rules", "interfaces", "quality"]
+    each = {"findings": []}
+    set_ = lambda prompt: {"conclusions": [{"code": "S-CON", "conclusion": "вывод"}] if "«quality»" in prompt else [],
+                           "findings": []}
+    llm = scripted(seg={"requirements": []}, each=each, set_=set_)
+    rep = run(make_doc(tmp_path), tmp_path / "r.md", SETTINGS, client=llm, use_cache=False)
+    set_calls = [c for c in llm.calls if "ПРОВЕРКА НАБОРА" in c[0]]
+    assert len(set_calls) == 4
+    assert rep.set_conclusions["S-CON"] == "вывод"
+    assert all(code in rep.set_conclusions for code in ["S-CMP", "S-TRC", "S-MOD"])
+
+
+def test_set_lens_failure_is_reported_not_silent(tmp_path):
+    set_ = lambda prompt: "битый json" if "«rules»" in prompt else {"conclusions": [], "findings": []}
+    llm = scripted(seg={"requirements": []}, each={"findings": []}, set_=set_)
+    rep = run(make_doc(tmp_path), tmp_path / "r.md", SETTINGS, client=llm, use_cache=False)
+    assert any("«rules»" in w or "rules" in w for w in rep.warnings)
+
+
+def test_requirement_ids_are_not_presented_as_missing_numbers_to_model(tmp_path):
+    seen = []
+    llm = FakeLLM(handler=lambda s, p: seen.append(p) or "{}")
+    run(make_doc(tmp_path), tmp_path / "r.md", SETTINGS, client=llm, use_cache=False)
+    assert not any("без номера" in p for p in seen)
+
+
+def test_verifier_also_checks_contradiction_claims_not_only_critical(tmp_path):
+    each = {"findings": [finding(["R-01"], "COR", "major", ["Система создаёт заказ за 2 секунды после оплаты."]),
+                         finding(["R-02"], "UNA", "major", ["Система отправляет письмо клиенту."])]}
+    llm = scripted(seg={"requirements": []}, each=each, set_={"findings": [], "conclusions": []},
+                   verify={"verdict": "rejected", "severity": "major", "reason": "ошибка расчёта"})
+    rep = run(make_doc(tmp_path), tmp_path / "r.md", SETTINGS, client=llm, use_cache=False)
+    assert rep.verifier_rejected == 1
+    assert [f.criterion for f in rep.findings if f.source == "llm"] == ["UNA"]

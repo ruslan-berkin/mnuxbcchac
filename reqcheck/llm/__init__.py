@@ -15,7 +15,7 @@ def _thinking_level() -> str | None:
     return None if v in ("", "default", "none") else v
 
 
-def build_client(settings: Settings, attempts: int = 5) -> LLMClient:
+def build_client(settings: Settings, attempts: int = 7) -> LLMClient:
     if settings.provider == "fake":
         return FakeLLM(model=settings.model or "fake-model")
     if not settings.has_key:

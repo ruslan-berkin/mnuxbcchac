@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from reqcheck.criteria import CriterionCode
@@ -50,3 +52,9 @@ class QItem(BaseModel):
 
 class QOut(BaseModel):
     questions: list[QItem] = Field(default_factory=list)
+
+
+class VerifyOut(BaseModel):
+    verdict: Literal["confirmed", "rejected"]
+    severity: Severity = "major"
+    reason: str = ""

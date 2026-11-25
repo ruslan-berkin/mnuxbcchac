@@ -26,23 +26,31 @@ def normalize_severity(f: Finding) -> Finding:
     return f if sev == f.severity else f.model_copy(update={"severity": sev})
 
 
+def _same_requirements(a: Finding, b: Finding) -> bool:
+    ra, rb = set(a.requirement_ids), set(b.requirement_ids)
+    return not ra or not rb or bool(ra & rb)
+
+
+def _duplicates(a: Finding, b: Finding) -> bool:
+    """Тот же критерий, согласованные требования и общая цитата (одна содержит другую)."""
+    if a.criterion != b.criterion or not _same_requirements(a, b):
+        return False
+    qa = [normalize(q) for q in a.quotes]
+    qb = [normalize(q) for q in b.quotes]
+    return any(x and y and (x in y or y in x) for x in qa for y in qb)
+
+
 def _dedupe(findings: list[Finding]) -> list[Finding]:
-    """Дубль: тот же критерий, те же требования и одна цитата содержит другую."""
-    groups: dict[tuple, list[tuple[Finding, str]]] = {}
     kept: list[Finding] = []
     for f in findings:
-        key = (f.criterion, tuple(sorted(f.requirement_ids)))
-        text = normalize(" ".join(f.quotes))
-        dup_of = next((g for g in groups.get(key, []) if text in g[1] or g[1] in text), None)
-        if dup_of is None:
-            groups.setdefault(key, []).append((f, text))
+        i = next((k for k, g in enumerate(kept) if _duplicates(f, g)), None)
+        if i is None:
             kept.append(f)
             continue
-        old = dup_of[0]
-        better = (SEVERITY_RANK[f.severity], f.source != "llm") < (SEVERITY_RANK[old.severity], old.source != "llm")
-        if better:
-            kept[kept.index(old)] = f
-            groups[key][groups[key].index(dup_of)] = (f, text)
+        old = kept[i]
+        # оставляем более серьёзное; при равенстве предпочитаем LLM (содержательнее формулировка)
+        if (SEVERITY_RANK[f.severity], f.source != "llm") < (SEVERITY_RANK[old.severity], old.source != "llm"):
+            kept[i] = f
     return kept
 
 
@@ -87,6 +95,7 @@ class Summary:
     by_criterion: dict[str, int]
     critical: list[Finding]
     dropped: int
+    rejected: int
     requirements_with_findings: int
 
 
@@ -101,5 +110,6 @@ def build_summary(report: Report) -> Summary:
         by_criterion=dict(sorted(crit.items())),
         critical=[f for f in report.findings if f.severity == "critical"],
         dropped=report.dropped_count,
+        rejected=report.verifier_rejected,
         requirements_with_findings=len(affected),
     )
