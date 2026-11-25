@@ -167,11 +167,516 @@ def rule_placeholders(doc: Document, requirements: list[Requirement]) -> list[Fi
     return out
 
 
+
+# ============================================================ правила по структуре и HTTP
+#
+# Общие правила: ни одно не опирается на формулировки конкретного документа.
+
+
+def _line_sections(doc: Document) -> dict[int, str]:
+    out: dict[int, str] = {}
+    for b in doc.blocks:
+        for n in range(b.anchor.line_start, b.anchor.line_end + 1):
+            out[n] = b.anchor.section
+    return out
+
+
+def _anchor(doc: Document, line_no: int) -> Anchor:
+    for b in doc.blocks:
+        a = b.anchor
+        if a.line_start <= line_no <= a.line_end:
+            return Anchor(section=a.section, page=a.page, line_start=line_no, line_end=line_no)
+    return Anchor(line_start=line_no, line_end=line_no)
+
+
+def _line(doc: Document, n: int) -> str:
+    return doc.lines[n - 1].strip()
+
+
+def _build(
+    doc: Document, reqs: list[Requirement], *, rule: str, req_code: str, set_code: str,
+    severity: Severity, lines: list[int], quotes: list[str] | None = None,
+    problem: str, fix: str, question: str,
+) -> Finding:
+    owners = list(dict.fromkeys(r.id for n in lines if (r := _owner(reqs, n))))
+    # Правило смотрит на несколько мест сразу (противоречие, сравнение) — это замечание к набору.
+    as_set = len(set(lines)) > 1 or not owners
+    return Finding(
+        id="",
+        scope="set" if as_set else "requirement",
+        requirement_ids=owners,
+        criterion=set_code if as_set else req_code,  # type: ignore[arg-type]
+        severity=severity,
+        quotes=quotes if quotes is not None else [_line(doc, n) for n in lines],
+        anchors=[_anchor(doc, n) for n in lines],
+        problem=problem, fix=fix, question=question, source="lint", rule=rule,
+    )
+
+
+_SEP_CELL = re.compile(r"^:?-{3,}:?$")
+
+
+def _cells(line: str) -> list[str]:
+    s = line.strip()
+    if not s.startswith("|"):
+        return []
+    s = s[1:-1] if s.endswith("|") else s[1:]
+    return [c.strip() for c in re.split(r"(?<!\\)\|", s)]
+
+
+def _is_sep(cells: list[str]) -> bool:
+    return bool(cells) and all(_SEP_CELL.match(c) or c == "" for c in cells) and any(cells)
+
+
+def _tables(doc: Document) -> list[list[tuple[int, list[str]]]]:
+    """Таблицы: списки (номер строки, ячейки). Строки-разделители пропускаются."""
+    out: list[list[tuple[int, list[str]]]] = []
+    cur: list[tuple[int, list[str]]] = []
+    for i, line in enumerate(doc.lines, start=1):
+        cells = _cells(line)
+        if cells:
+            if not _is_sep(cells):
+                cur.append((i, cells))
+        elif cur:
+            out.append(cur)
+            cur = []
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _plain(cell: str) -> str:
+    return re.sub(r"[*_`]", "", cell).strip()
+
+
+# --- «в течение» без точки отсчёта
+
+_WITHIN = re.compile(
+    r"в\s+течение\s+(?:[\w\-]+\s+){0,2}?(?:секунд\w*|сек\.?|минут\w*|мин\.?|час\w*|дн\w*|суток|"
+    r"недел\w*|месяц\w*|мс|миллисекунд\w*)(?![\w])", re.IGNORECASE)
+_REFERENCE = re.compile(
+    r"после|с\s+момента|со\s+дня|с\s+даты|от\s+(?:момента|получения|даты)|начиная|по\s+истечении|"
+    r"с\s+(?:получения|поступления|начала)|с\s+того\s+как|в\s+случае|при\s+получении|within\s+\d.*\bof\b|after|since",
+    re.IGNORECASE)
+
+
+def rule_time_without_reference(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    out = []
+    for block in doc.blocks:
+        if _is_code_or_heading(block):
+            continue
+        for off, line in enumerate(block.text.split("\n")):
+            for m in _WITHIN.finditer(line):
+                sentence = _sentence_at(line, m.start())
+                if _REFERENCE.search(sentence):
+                    continue
+                n = block.anchor.line_start + off
+                out.append(_build(
+                    doc, reqs, rule="time_without_reference", req_code="UNA", set_code="S-CMH",
+                    severity="major", lines=[n], quotes=[sentence],
+                    problem=f"Срок «{m.group(0)}» задан без точки отсчёта: неясно, с какого события "
+                            "он считается, поэтому его нельзя измерить и проверить.",
+                    fix="Указать событие, от которого идёт отсчёт, и способ измерения "
+                        "(например, перцентиль и точки замера).",
+                    question=f"От какого именно события отсчитывается «{m.group(0)}» и как это измеряется?",
+                ))
+    return out
+
+
+# --- прочерк вместо значения
+
+_DASHES_ONLY = {"—", "–", "-", "−"}
+_INLINE_DASH = re.compile(r"[:：]\s*[—–−]\s*(?=[.;,)]|\s*$)")
+
+
+def rule_dash_fields(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    out = []
+    seen: set[int] = set()
+    for table in _tables(doc):
+        header = [_plain(h).lower() for h in table[0][1]]
+        for n, cells in table[1:]:
+            label = _plain(cells[0]) if cells else ""
+            for k, c in enumerate(cells[1:], start=1):
+                # В колонке «DB field» прочерк означает «поля в БД нет», это не пропуск.
+                if k < len(header) and re.search(r"\bdb\b|бд|баз[аы]", header[k]):
+                    continue
+                if _plain(c) in _DASHES_ONLY:
+                    seen.add(n)
+                    out.append(_build(
+                        doc, reqs, rule="dash_fields", req_code="CMP", set_code="S-CMP",
+                        severity="major", lines=[n],
+                        problem=f"Поле «{label}» содержит прочерк вместо значения: сведений для "
+                                "реализации или проверки нет.",
+                        fix="Заполнить поле или явно указать, что оно не применимо, и почему.",
+                        question=f"Какое значение должно быть у поля «{label}», или оно не требуется?",
+                    ))
+                    break
+    for block in doc.blocks:
+        if _is_code_or_heading(block):
+            continue
+        for off, line in enumerate(block.text.split("\n")):
+            n = block.anchor.line_start + off
+            if n in seen or line.lstrip().startswith("|"):
+                continue
+            for m in _INLINE_DASH.finditer(line):
+                head = re.split(r"[.;]\s", line[:m.start()])[-1].strip(" *`")
+                label = head.split()[-1] if head.split() else "значение"
+                out.append(_build(
+                    doc, reqs, rule="dash_fields", req_code="CMP", set_code="S-CMP",
+                    severity="major", lines=[n], quotes=[_sentence_at(line, m.start())],
+                    problem=f"Значение «{label}» заменено прочерком: сведений для реализации нет.",
+                    fix="Заполнить значение или явно указать, что оно не применимо.",
+                    question=f"Какое значение должно быть у «{label}», или оно не требуется?",
+                ))
+    return out
+
+
+# --- «Да / Нет» без отметки и пустые строки таблиц
+
+_UNCHECKED = re.compile(r"^да\s*/\s*нет(?:\s*/\s*не\s+требуется)?$", re.IGNORECASE)
+
+
+def rule_unchecked_options(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    out = []
+    for table in _tables(doc):
+        hits = [n for n, cells in table[1:] if any(_UNCHECKED.match(_plain(c)) for c in cells)]
+        if hits:
+            out.append(_build(
+                doc, reqs, rule="unchecked_options", req_code="CNF", set_code="S-VAL",
+                severity="minor", lines=[hits[0]],
+                problem=f"В таблице {len(hits)} строк(и) с невыбранным вариантом «Да / Нет»: "
+                        "отметки не проставлены, проверка по чек-листу не выполнена.",
+                fix="Проставить отметки или убрать неприменимые строки; указать, кто и когда проверил.",
+                question="Кто и до какой даты проставит отметки в чек-листе ревью?",
+            ))
+    return out
+
+
+def rule_empty_table_rows(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    out = []
+    for table in _tables(doc):
+        header_n, header = table[0]
+        empty = [n for n, cells in table[1:] if cells and all(c == "" for c in cells)]
+        if empty and any(c for c in header):
+            out.append(_build(
+                doc, reqs, rule="empty_table_rows", req_code="CMP", set_code="S-CMP",
+                severity="major", lines=[header_n],
+                problem=f"В таблице «{' | '.join(c for c in header if c)}» есть пустые строки "
+                        f"({len(empty)}): данные не внесены.",
+                fix="Заполнить строки (например, ответственных и подписи) или удалить пустые.",
+                question="Кто должен быть указан в этой таблице и когда будет заполнено?",
+            ))
+    return out
+
+
+# --- версия и дата документа
+
+_VERSION = re.compile(r"(?:верси\w*|version|редакци\w*|ред\.)\s*[:№]?\s*v?\d+(?:\.\d+)*|\bv\d+(?:\.\d+)+\b",
+                      re.IGNORECASE)
+_DATE = re.compile(r"\b\d{1,2}[./]\d{1,2}[./]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|"
+                   r"\b\d{1,2}\s+(?:январ|феврал|март|апрел|ма[яй]|июн|июл|август|сентябр|октябр|ноябр|декабр)\w*\s+\d{4}",
+                   re.IGNORECASE)
+
+
+def rule_missing_version(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    text = doc.full_text
+    missing = []
+    if not _VERSION.search(text):
+        missing.append("версия")
+    if not _DATE.search(text):
+        missing.append("дата")
+    if not missing:
+        return []
+    first = next((i for i, ln in enumerate(doc.lines, start=1) if ln.strip()), 1)
+    return [_build(
+        doc, reqs, rule="missing_version", req_code="CNF", set_code="S-MOD", severity="minor",
+        lines=[first],
+        problem=f"В документе не указаны: {', '.join(missing)}. Без них нельзя понять, какая "
+                "редакция требований согласована, и отследить изменения.",
+        fix="Указать версию и дату документа и вести историю изменений.",
+        question="Какая версия и дата у этого документа и где ведётся история изменений?",
+    )]
+
+
+# --- смешение единиц одной величины
+
+_UNIT_FAMILIES: list[tuple[str, re.Pattern[str], str, re.Pattern[str]]] = [
+    ("тиын", re.compile(r"тиын\w*", re.I), "тенге", re.compile(r"тенге|₸", re.I)),
+    ("копейки", re.compile(r"копе(?:йк|ек)\w*", re.I), "рубли", re.compile(r"руб(?:л\w*|\.)|₽", re.I)),
+    ("миллисекунды", re.compile(r"(?<!\w)(?:мс|мсек\.?|миллисекунд\w*)(?!\w)", re.I), "секунды",
+     re.compile(r"(?<!\w)(?:сек\.?|секунд\w*)(?!\w)", re.I)),
+]
+_UNIT_WINDOW = 15
+
+
+def rule_mixed_units(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    out = []
+    for name_a, pat_a, name_b, pat_b in _UNIT_FAMILIES:
+        hits_a = [i for i, ln in enumerate(doc.lines, start=1) if pat_a.search(ln)]
+        hits_b = [i for i, ln in enumerate(doc.lines, start=1) if pat_b.search(ln)]
+        pair = next(((a, b) for a in hits_a for b in hits_b if abs(a - b) <= _UNIT_WINDOW), None)
+        if not pair:
+            continue
+        a, b = pair
+        lines = sorted({a, b})
+        out.append(_build(
+            doc, reqs, rule="mixed_units", req_code="COR", set_code="S-CON", severity="major",
+            lines=lines,
+            problem=f"Рядом используются разные единицы одной величины: {name_a} и {name_b}. "
+                    "Без явного правила пересчёта легко получить расхождение на порядки при реализации и сравнении.",
+            fix=f"Привести к одной единице или явно описать пересчёт между «{name_a}» и «{name_b}» "
+                "и место, где он выполняется.",
+            question=f"В каких единицах ({name_a} или {name_b}) хранится, передаётся и сравнивается "
+                     "каждая из этих величин и где выполняется пересчёт?",
+        ))
+    return out
+
+
+# --- HTTP
+
+_METHOD_LINE = re.compile(r"REST\s*type\W+(GET|POST|PUT|PATCH|DELETE)\b|^\W*(GET|POST|PUT|PATCH|DELETE)\s+/",
+                          re.IGNORECASE)
+_WRITE_VERB = re.compile(
+    r"(?<![\w])(?:сохран\w*|созда\w*|измен\w*|удал\w*|обнов\w*|записа\w*|добав\w*|"
+    r"save|create|update|delete|remove|insert)", re.IGNORECASE)
+_URL_WRITE = re.compile(r"/[\w/\-]*(?:save|create|update|delete|remove|set|add)\w*", re.IGNORECASE)
+_READ_VERB = re.compile(r"(?<![\w])(?:чтен\w*|чита\w*|прочит\w*|получ\w*|read|fetch)", re.IGNORECASE)
+
+
+def rule_http_method_verb(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    secs = _line_sections(doc)
+    out = []
+    for i, line in enumerate(doc.lines, start=1):
+        m = _METHOD_LINE.search(line)
+        method = (m.group(1) or m.group(2)).upper() if m else ""
+        if method != "GET":
+            continue
+        same = [n for n in range(1, len(doc.lines) + 1)
+                if secs.get(n) == secs.get(i) and n != i and abs(n - i) <= 25]
+        hit = next((n for n in same
+                    if _WRITE_VERB.search(doc.lines[n - 1]) or _URL_WRITE.search(doc.lines[n - 1])), None)
+        if hit is None:
+            continue
+        out.append(_build(
+            doc, reqs, rule="http_method_verb", req_code="COR", set_code="S-CON", severity="major",
+            lines=[i, hit],
+            problem="Операция изменяет данные (сохранить/создать/изменить/удалить), но описана методом GET. "
+                    "GET по определению безопасный метод и не должен менять состояние (RFC 9110, п. 9.2.1).",
+            fix="Использовать POST, PUT, PATCH или DELETE в зависимости от семантики операции "
+                "и описать тело запроса.",
+            question="Какой HTTP-метод должен использоваться для этой операции и почему выбран GET?",
+        ))
+    return out
+
+
+def rule_mixed_operation(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    out = []
+    for i, line in enumerate(doc.lines, start=1):
+        cells = _cells(line)
+        if len(cells) < 2 or not re.fullmatch(r"(?:description|описание)", _plain(cells[0]), re.I):
+            continue
+        desc = " ".join(cells[1:])
+        if _WRITE_VERB.search(desc) and _READ_VERB.search(desc):
+            out.append(_build(
+                doc, reqs, rule="mixed_operation", req_code="SNG", set_code="S-CON", severity="major",
+                lines=[i],
+                problem="Описание метода объединяет запись и чтение: из него неясно, что делает один вызов.",
+                fix="Разделить на два метода или описать один вызов, указав, что он принимает и что возвращает.",
+                question="Это один метод или два? Что делает вызов: сохраняет, читает или оба действия сразу?",
+            ))
+    return out
+
+
+_STATUS_DESCRIBED = re.compile(r"^[\s#*|•\-–]*([1-5]\d\d)\**\s*(?:[.:]|[—–-]\s)")
+_STATUS_CONTEXT = re.compile(r"статус|код\w*|возвращ\w*|результат|http|status|ответ", re.IGNORECASE)
+_STATUS_MENTION = re.compile(
+    r"(?<![\d.,/\-:])(?<!\d )(?<!\d\xa0)([1-5]\d\d)(?!\d)(?![.,]\d)(?!\s*(?:руб|₸|тенге|тиын|сек|мс|%|шт|симв|байт|"
+    r"кб|мб|дн|мин|час|₽|\d))", re.IGNORECASE)
+
+
+def rule_status_codes(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    described: set[str] = set()
+    for line in doc.lines:
+        m = _STATUS_DESCRIBED.match(line)
+        if m:
+            described.add(m.group(1))
+    if not described:
+        return []  # в документе нет списка статусов — это не описание API
+    out = []
+    reported: set[str] = set()
+    for i, line in enumerate(doc.lines, start=1):
+        own = _STATUS_DESCRIBED.match(line)
+        if not _STATUS_CONTEXT.search(line):
+            continue
+        for m in _STATUS_MENTION.finditer(line):
+            code = m.group(1)
+            if (own and own.group(1) == code) or code in described or code in reported:
+                continue
+            reported.add(code)
+            out.append(_build(
+                doc, reqs, rule="status_codes", req_code="CMP", set_code="S-CMP", severity="major",
+                lines=[i], quotes=[_sentence_at(line, m.start())],
+                problem=f"Код статуса {code} упоминается в тексте, но не описан в списке статусов: "
+                        "неизвестно, при каких условиях он возвращается и каким будет тело ответа.",
+                fix=f"Добавить статус {code} в список с условием возврата и примером ответа "
+                    "или убрать упоминание.",
+                question=f"Возвращается ли статус {code}? При каких условиях и с каким телом ответа?",
+            ))
+    return out
+
+
+_NO_BODY = re.compile(r"тело\s+(?:запроса\s+)?не\s+использу\w+|без\s+тела|нет\s+тела|"
+                      r"body\s+(?:is\s+)?not\s+(?:used|required)|no\s+(?:request\s+)?body", re.IGNORECASE)
+
+
+def rule_content_type_without_body(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    secs = _line_sections(doc)
+    out = []
+    for i, line in enumerate(doc.lines, start=1):
+        if not re.search(r"content-type", line, re.IGNORECASE):
+            continue
+        hit = next((n for n in range(1, len(doc.lines) + 1)
+                    if n != i and secs.get(n) == secs.get(i) and abs(n - i) <= 10
+                    and _NO_BODY.search(doc.lines[n - 1])), None)
+        if hit is None:
+            continue
+        out.append(_build(
+            doc, reqs, rule="content_type_without_body", req_code="COR", set_code="S-CON",
+            severity="minor", lines=[i, hit],
+            problem="Указан заголовок Content-Type, хотя тело запроса не используется: "
+                    "заголовок не несёт смысла и сбивает реализатора.",
+            fix="Убрать Content-Type или описать тело запроса.",
+            question="Используется ли тело запроса? Если нет, зачем указан Content-Type?",
+        ))
+    return out
+
+
+_TYPE_ALIASES = {"int": "integer", "int32": "integer", "int64": "integer", "long": "integer",
+                 "number": "integer", "str": "string", "text": "string", "bool": "boolean"}
+_REQ_SECTION = re.compile(r"запрос|request|query|path|body|тело", re.IGNORECASE)
+_RESP_SECTION = re.compile(r"ответ|response", re.IGNORECASE)
+
+
+def _ptype(value: str) -> str:
+    v = re.sub(r"[`*_]", "", value).strip().lower()
+    return _TYPE_ALIASES.get(v, v)
+
+
+def rule_field_type_mismatch(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    side_fields: dict[str, dict[str, tuple[str, int]]] = {"req": {}, "resp": {}}
+    secs = _line_sections(doc)
+    for table in _tables(doc):
+        header = [_plain(c).lower() for c in table[0][1]]
+        name_i = next((k for k, h in enumerate(header)
+                       if re.fullmatch(r"parameter|param|name|field|параметр|поле|имя", h)), None)
+        type_i = next((k for k, h in enumerate(header)
+                       if re.fullmatch(r"format|type|формат|тип", h)), None)
+        if name_i is None or type_i is None:
+            continue
+        section = secs.get(table[0][0], "")
+        side = "resp" if _RESP_SECTION.search(section) else "req" if _REQ_SECTION.search(section) else None
+        if side is None:
+            continue
+        for n, cells in table[1:]:
+            if max(name_i, type_i) < len(cells):
+                name = _plain(cells[name_i])
+                if name:
+                    side_fields[side].setdefault(name, (_ptype(cells[type_i]), n))
+    out = []
+    for name, (t_req, n_req) in side_fields["req"].items():
+        if name in side_fields["resp"]:
+            t_resp, n_resp = side_fields["resp"][name]
+            if t_req != t_resp:
+                out.append(_build(
+                    doc, reqs, rule="field_type_mismatch", req_code="COR", set_code="S-CON",
+                    severity="major", lines=[n_req, n_resp],
+                    problem=f"Поле «{name}» имеет тип «{t_req}» в запросе и «{t_resp}» в ответе: "
+                            "клиент и сервер по-разному разбирают одно и то же значение.",
+                    fix="Привести типы к одному или явно описать преобразование.",
+                    question=f"Какой тип должен быть у поля «{name}» в запросе и в ответе и почему они различаются?",
+                ))
+    return out
+
+
+# --- ссылки на несуществующие разделы и документы
+
+_REF_NUM = re.compile(r"(?<![\w.])(?:разделе?|разделу|раздела|пункт\w*|п\.|section|§)\s*(\d+(?:\.\d+)*)", re.IGNORECASE)
+_REF_NAMED = re.compile(r"(?:раздел\w*|section|приложени\w*|документ\w*|спецификаци\w*)\s*[«\"]([^»\"]{4,120})[»\"]",
+                        re.IGNORECASE)
+_STANDARD_CONTEXT = re.compile(r"ISO|IEC|IEEE|ГОСТ|RFC|СТ РК|стандарт", re.IGNORECASE)
+
+
+def _heading_names(doc: Document) -> list[str]:
+    from reqcheck.ground import normalize
+    names = {normalize(b.anchor.section) for b in doc.blocks if b.anchor.section}
+    return [n for n in names if n]
+
+
+def rule_dangling_references(doc: Document, reqs: list[Requirement]) -> list[Finding]:
+    from reqcheck.ground import normalize
+
+    headings = _heading_names(doc)
+    norm_lines = [normalize(ln) for ln in doc.lines]
+    out = []
+    for block in doc.blocks:
+        if _is_code_or_heading(block):
+            continue
+        for off, line in enumerate(block.text.split("\n")):
+            n = block.anchor.line_start + off
+            for m in _REF_NUM.finditer(line):
+                sentence = _sentence_at(line, m.start())
+                if _STANDARD_CONTEXT.search(sentence):
+                    continue
+                num = m.group(1)
+                exists = any(re.match(rf"^{re.escape(num)}(?:[.\s)]|$)", h) for h in headings) or any(
+                    re.match(rf"^[\s|*#•\-]*{re.escape(num)}[.\s)]", ln) for ln in doc.lines)
+                if exists:
+                    continue
+                out.append(_build(
+                    doc, reqs, rule="dangling_references", req_code="CMP", set_code="S-TRC",
+                    severity="major", lines=[n], quotes=[sentence],
+                    problem=f"Ссылка на раздел/пункт {num}, которого нет в документе: "
+                            "читатель не может найти, на что именно сослались.",
+                    fix="Исправить номер ссылки или добавить недостающий раздел.",
+                    question=f"Какой раздел имеется в виду под «{m.group(0)}» и где он находится?",
+                ))
+            for m in _REF_NAMED.finditer(line):
+                name = normalize(m.group(1))
+                if not name:
+                    continue
+                if any(name in h or h in name for h in headings if len(h) >= 4):
+                    continue
+                occurrences = sum(1 for ln in norm_lines if name in ln)
+                if occurrences >= 2:
+                    continue
+                out.append(_build(
+                    doc, reqs, rule="dangling_references", req_code="CMP", set_code="S-TRC",
+                    severity="major", lines=[n], quotes=[_sentence_at(line, m.start())],
+                    problem=f"Ссылка на «{m.group(1)}», но такого раздела или документа в предоставленном "
+                            "тексте нет: проверить согласованность нельзя.",
+                    fix="Приложить документ или раздел либо убрать ссылку и перенести нужные требования сюда.",
+                    question=f"Где находится «{m.group(1)}» и можно ли получить его для проверки?",
+                ))
+    return out
+
+
 RULES: list[Rule] = [
     rule_vague_words,
     rule_open_lists,
     rule_conditional_phrases,
     rule_placeholders,
+    rule_time_without_reference,
+    rule_dash_fields,
+    rule_unchecked_options,
+    rule_empty_table_rows,
+    rule_missing_version,
+    rule_mixed_units,
+    rule_http_method_verb,
+    rule_mixed_operation,
+    rule_status_codes,
+    rule_content_type_without_body,
+    rule_field_type_mismatch,
+    rule_dangling_references,
 ]
 
 
