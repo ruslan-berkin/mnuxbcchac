@@ -1,0 +1,113 @@
+2026-11-26 01:11:53,689 INFO reqcheck: Документ: examples/input/requirements.pdf (pdf, 142 строк, 73 блоков)
+2026-11-26 01:11:53,689 INFO reqcheck: Режим: full
+2026-11-26 01:11:53,689 INFO reqcheck: LLM: openai_compat / gpt-6.2-sol, кэш вкл, потоков 4
+2026-11-26 01:11:53,692 INFO reqcheck.llm: LLM вызов: SegOut, промпт 13447 симв.
+2026-11-26 01:12:33,058 INFO reqcheck.llm: LLM ответ: SegOut за 39 с, 11175 симв.
+2026-11-26 01:12:33,073 INFO reqcheck.segment: segment: явных 4, от LLM 49, итого 53, отброшено по цитате 0
+2026-11-26 01:12:33,073 INFO reqcheck: segment: требований 53
+2026-11-26 01:12:33,077 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6808 симв.
+2026-11-26 01:12:33,078 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6949 симв.
+2026-11-26 01:12:33,081 INFO reqcheck.llm: LLM вызов: EachOut, промпт 8008 симв.
+2026-11-26 01:12:33,083 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6803 симв.
+2026-11-26 01:12:39,601 INFO reqcheck.llm: LLM ответ: EachOut за 7 с, 1474 симв.
+2026-11-26 01:12:39,605 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7028 симв.
+2026-11-26 01:12:41,198 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 1654 симв.
+2026-11-26 01:12:41,203 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6768 симв.
+2026-11-26 01:12:43,805 INFO reqcheck.llm: LLM ответ: EachOut за 11 с, 1771 симв.
+2026-11-26 01:12:43,833 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6829 симв.
+2026-11-26 01:12:47,464 INFO reqcheck.llm: LLM ответ: EachOut за 6 с, 841 симв.
+2026-11-26 01:12:47,468 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6994 симв.
+2026-11-26 01:12:52,712 INFO reqcheck.llm: LLM ответ: EachOut за 20 с, 3142 симв.
+2026-11-26 01:12:52,716 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7279 симв.
+2026-11-26 01:12:54,011 INFO reqcheck.llm: LLM ответ: EachOut за 10 с, 2440 симв.
+2026-11-26 01:12:54,016 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7392 симв.
+2026-11-26 01:12:56,755 INFO reqcheck.llm: LLM ответ: EachOut за 17 с, 4059 симв.
+2026-11-26 01:12:56,761 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7186 симв.
+2026-11-26 01:13:00,143 INFO reqcheck.llm: LLM ответ: EachOut за 13 с, 1549 симв.
+2026-11-26 01:13:00,149 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7138 симв.
+2026-11-26 01:13:01,809 INFO reqcheck.llm: LLM ответ: EachOut за 9 с, 1529 симв.
+2026-11-26 01:13:01,813 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6916 симв.
+2026-11-26 01:13:04,985 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 1503 симв.
+2026-11-26 01:13:04,988 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6732 симв.
+2026-11-26 01:13:06,389 INFO reqcheck.llm: LLM ответ: EachOut за 12 с, 2138 симв.
+2026-11-26 01:13:06,394 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6616 симв.
+2026-11-26 01:13:07,981 INFO reqcheck.llm: LLM ответ: EachOut за 2 с, 15 симв.
+2026-11-26 01:13:07,986 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7153 симв.
+2026-11-26 01:13:09,615 INFO reqcheck.llm: LLM ответ: EachOut за 5 с, 850 симв.
+2026-11-26 01:13:09,619 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6714 симв.
+2026-11-26 01:13:12,394 INFO reqcheck.llm: LLM ответ: EachOut за 11 с, 594 симв.
+2026-11-26 01:13:12,400 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7262 симв.
+2026-11-26 01:13:15,341 INFO reqcheck.llm: LLM ответ: EachOut за 6 с, 1130 симв.
+2026-11-26 01:13:15,347 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6995 симв.
+2026-11-26 01:13:20,519 INFO reqcheck.llm: LLM ответ: EachOut за 13 с, 2059 симв.
+2026-11-26 01:13:20,526 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6808 симв.
+2026-11-26 01:13:23,776 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 710 симв.
+2026-11-26 01:13:23,781 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7128 симв.
+2026-11-26 01:13:25,802 INFO reqcheck.llm: LLM ответ: EachOut за 26 с, 4944 симв.
+2026-11-26 01:13:25,808 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6777 симв.
+2026-11-26 01:13:26,311 INFO reqcheck.llm: LLM ответ: EachOut за 6 с, 789 симв.
+2026-11-26 01:13:28,629 INFO reqcheck.llm: LLM ответ: EachOut за 16 с, 2031 симв.
+2026-11-26 01:13:33,494 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 883 симв.
+2026-11-26 01:13:36,579 INFO reqcheck.llm: LLM ответ: EachOut за 13 с, 2035 симв.
+2026-11-26 01:13:36,585 INFO reqcheck: check_each: замечаний 52, не проверено 0
+2026-11-26 01:13:36,593 INFO reqcheck.llm: LLM вызов: SetOut, промпт 18934 симв.
+2026-11-26 01:13:36,597 INFO reqcheck.llm: LLM вызов: SetOut, промпт 19115 симв.
+2026-11-26 01:13:36,598 INFO reqcheck.llm: LLM вызов: SetOut, промпт 18915 симв.
+2026-11-26 01:14:18,072 INFO reqcheck.llm: LLM ответ: SetOut за 41 с, 6989 симв.
+2026-11-26 01:14:18,077 INFO reqcheck.set: check_set[rules]: замечаний 7
+2026-11-26 01:14:28,467 INFO reqcheck.llm: LLM ответ: SetOut за 52 с, 11556 симв.
+2026-11-26 01:14:28,473 INFO reqcheck.set: check_set[acceptance]: замечаний 12
+2026-11-26 01:14:42,336 INFO reqcheck.llm: LLM ответ: SetOut за 66 с, 15908 симв.
+2026-11-26 01:14:42,342 INFO reqcheck.set: check_set[interfaces]: замечаний 17
+2026-11-26 01:14:42,350 INFO reqcheck.llm: LLM вызов: SetOut, промпт 24665 симв.
+2026-11-26 01:15:20,115 INFO reqcheck.llm: LLM ответ: SetOut за 38 с, 6859 симв.
+2026-11-26 01:15:20,128 INFO reqcheck.set: check_set[quality]: замечаний 7
+2026-11-26 01:15:20,128 INFO reqcheck: check_set: замечаний 43
+2026-11-26 01:15:20,142 INFO reqcheck: lint: замечаний 13
+2026-11-26 01:15:20,151 INFO reqcheck: ground: отброшено 0 (в том числе требований 0)
+2026-11-26 01:15:20,161 INFO reqcheck.llm: LLM вызов: ConsolidateOut, промпт 29499 симв.
+2026-11-26 01:15:44,774 INFO reqcheck.llm: LLM ответ: ConsolidateOut за 25 с, 692 симв.
+2026-11-26 01:15:44,778 INFO reqcheck.consolidate: consolidate: ['D-001', 'D-043'] слиты в D-044
+2026-11-26 01:15:44,778 INFO reqcheck.consolidate: consolidate: ['D-020'] слиты в D-017
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-024'] слиты в D-025
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-030'] слиты в D-031
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-038'] слиты в D-039
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-046'] слиты в D-045
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-049', 'D-055'] слиты в D-048
+2026-11-26 01:15:44,779 WARNING reqcheck.consolidate: consolidate: группа ['D-051', 'D-058', 'D-065'] отклонена: нет видимой связи с D-051
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-052', 'D-054'] слиты в D-053
+2026-11-26 01:15:44,779 INFO reqcheck.consolidate: consolidate: ['D-059'] слиты в D-063
+2026-11-26 01:15:44,780 INFO reqcheck.consolidate: consolidate: ['D-071'] слиты в D-070
+2026-11-26 01:15:44,780 INFO reqcheck.consolidate: consolidate: ['D-082'] слиты в D-081
+2026-11-26 01:15:44,780 INFO reqcheck: consolidate: слито дублей 14
+2026-11-26 01:15:44,789 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 12994 симв.
+2026-11-26 01:15:44,792 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 12910 симв.
+2026-11-26 01:15:44,794 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13203 симв.
+2026-11-26 01:15:44,794 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13266 симв.
+2026-11-26 01:15:48,231 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 439 симв.
+2026-11-26 01:15:48,236 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13101 симв.
+2026-11-26 01:15:48,345 INFO reqcheck.llm: LLM ответ: VerifyOut за 4 с, 279 симв.
+2026-11-26 01:15:48,346 INFO reqcheck.llm: LLM ответ: VerifyOut за 4 с, 319 симв.
+2026-11-26 01:15:48,350 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13115 симв.
+2026-11-26 01:15:48,351 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13075 симв.
+2026-11-26 01:15:50,656 INFO reqcheck.llm: LLM ответ: VerifyOut за 6 с, 571 симв.
+2026-11-26 01:15:50,660 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 12980 симв.
+2026-11-26 01:15:51,309 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 388 симв.
+2026-11-26 01:15:51,312 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13226 симв.
+2026-11-26 01:15:51,486 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 425 симв.
+2026-11-26 01:15:51,489 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 12980 симв.
+2026-11-26 01:15:53,056 INFO reqcheck.llm: LLM ответ: VerifyOut за 5 с, 381 симв.
+2026-11-26 01:15:53,059 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13048 симв.
+2026-11-26 01:15:53,409 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 334 симв.
+2026-11-26 01:15:53,413 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 12967 симв.
+2026-11-26 01:15:54,303 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 300 симв.
+2026-11-26 01:15:54,783 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 430 симв.
+2026-11-26 01:15:56,206 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 370 симв.
+2026-11-26 01:15:56,370 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 343 симв.
+2026-11-26 01:15:56,373 WARNING reqcheck.verify: verify: снято D-001 (CMP): В Sequence Diagram входное событие названо прямо: «Процессинг → сервис расходов: проведена покупка.» Ф-3 задаёт условие отправки push: расходы переходят от суммы ниже порога к сумме, равной порогу или выше; первый критерий приёмки проверяет этот сценарий на конкретных суммах.
+2026-11-26 01:15:56,373 WARNING reqcheck.verify: verify: снято D-002 (CMP): Часть A прямо называет две операции приложения: чтение и сохранение настроек. Часть B описывает параметры и результат сохранения, а отсутствие контракта чтения — отдельный дефект, не подтверждающий утверждение, что операции вообще не определены.
+2026-11-26 01:15:56,374 WARNING reqcheck.verify: verify: снято D-041 (CMP): В строке Description действительно упомянуты и сохранение, и чтение, но пункт 4 логики метода прямо предписывает: «Заменить настройку и вернуть результат сохранения.» Особые правила также подтверждают замену действующей настройки, поэтому формулировку в Description стоит исправить, но она не мешает 
+2026-11-26 01:15:56,374 WARNING reqcheck.verify: verify: снято D-051 (CMP): В Ф-1 части A указан диапазон от 1 000 до 1 000 000 ₸ включительно. Те же значения приведены для параметра amount в части B, а её особые правила подтверждают включение обеих границ, поэтому данных достаточно для проверки диапазона и выбора граничных тестов.
+2026-11-26 01:15:56,374 WARNING reqcheck.verify: verify: снято D-052 (CMP): Цитата передаёт маршрут взаимодействия, но назначение метода раскрыто в соседних разделах: контроллер заменяет настройку, входные данные указаны в параметрах запроса, а форматы и примеры ответов — в разделах «Ответ» и «Статусы». Противоречия в описании API не подтверждают заявленный пропуск в схеме.
+2026-11-26 01:15:56,374 INFO reqcheck: verify: снято критичных 5
+2026-11-26 01:15:56,517 INFO reqcheck: Отчёт записан: reports/report.md
