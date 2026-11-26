@@ -424,3 +424,17 @@ html {
   border-color: var(--accent);
   background: rgba(31, 122, 62, 0.1);
 }
+
+/* Рамка вокруг вопроса агента мягко пульсирует, пока на него не ответили */
+.ask-pulse {
+  animation: ask-pulse 2.2s ease-out infinite;
+}
+@keyframes ask-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(31, 122, 62, 0.45);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 12px rgba(31, 122, 62, 0);
+  }
+}

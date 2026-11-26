@@ -7,7 +7,7 @@ import Preview from "../landing/Preview"
 import DocumentPane from "./DocumentPane"
 import FindingCard from "./FindingCard"
 import RequirementsTab from "./RequirementsTab"
-import QuestionsTab from "./QuestionsTab"
+import QuestionsTab, { AnswerForm } from "./QuestionsTab"
 import RecheckCard from "./RecheckCard"
 import SummaryTab from "./SummaryTab"
 import TopBar from "./TopBar"
@@ -236,10 +236,49 @@ export default function Platform() {
 
   const totalQuestions = data?.report.findings.filter((f) => f.question).length ?? 0
   const running = source?.kind === "run" && !data && !error
+  const questions = data?.view.top_questions ?? []
+  const pending = questions.filter((q) => !answers[q.finding_id])
+  const blocking = pending.filter((q) => q.severity === "critical").length
+  const next = pending[0]
+  const answeredHere = questions.length - pending.length
+
+  // Агент сам задаёт следующий вопрос прямо в отчёте: после ответа на его месте появляется новый.
+  const ask = questions.length > 0 && (
+    <section aria-label="Агент ждёт ответ" className={`space-y-3 rounded-2xl border-2 p-5 ${next ? "ask-pulse border-accent bg-accent-soft" : "border-rule bg-page"}`}>
+      {next ? (
+        <>
+          <p className="flex flex-wrap items-center gap-2">
+            <span aria-hidden className="grid size-8 place-items-center rounded-full bg-accent text-sm font-bold text-white">?</span>
+            <span className="text-lg font-semibold">Агент ждёт ваш ответ</span>
+            <span className="ml-auto text-sm text-muted">Вопрос {answeredHere + 1} из {questions.length}</span>
+          </p>
+          <p className="text-sm">
+            {blocking > 0
+              ? <><b className="text-critical">Блокирующих вопросов: {blocking}.</b> Пока на них нет ответа, разработчики будут додумывать сами.</>
+              : "Ответы помогут снять замечания до начала разработки."}
+          </p>
+          <p className="text-base font-medium">{next.question}</p>
+          <AnswerForm key={next.finding_id} question={next} onAnswer={answer} />
+        </>
+      ) : (
+        <p className="text-lg font-semibold">Все главные вопросы отвечены. Осталось перепроверить замечания.</p>
+      )}
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {answeredHere > 0 && (
+          <button type="button" onClick={() => showQuestions()} className="rounded-full bg-ink px-4 py-2 font-medium text-page">
+            Перепроверить с ответами ({answeredHere})
+          </button>
+        )}
+        <button type="button" onClick={() => showQuestions()} className="font-semibold text-accent underline underline-offset-4">
+          Все вопросы
+        </button>
+      </div>
+    </section>
+  )
   const tabs: [Tab, string, number | null][] = [
     ["report", "Отчёт", null],
     ["findings", "Замечания", data?.report.findings.length ?? 0],
-    ["questions", "Вопросы агента", totalQuestions],
+    ["questions", "Вопросы агента", pending.length],
     ["requirements", "Требования", data?.report.requirements.length ?? 0],
   ]
   const select = "rounded-lg border border-rule bg-page px-2 py-1.5"
@@ -273,7 +312,7 @@ export default function Platform() {
             {([[false, "Результаты проверки"], [true, "Чат с агентом"]] as [boolean, string][]).map(([chat, label]) => (
               <button key={label} type="button" aria-pressed={chatOpen === chat} onClick={() => setChatOpen(chat)}
                 className={`rounded-full py-2 font-medium ${chatOpen === chat ? "bg-ink text-page" : "text-muted"}`}>
-                {label}
+                {label}{chat && pending.length > 0 && <span className="ml-2 rounded-full bg-critical px-2 text-xs text-white">{pending.length}</span>}
               </button>
             ))}
           </div>
@@ -286,8 +325,15 @@ export default function Platform() {
                     className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl border-b-[3px] px-4 py-2.5 ${
                       tab === key ? "border-accent bg-accent-soft font-semibold" : "border-transparent text-muted hover:text-ink"}`}>
                     {label}
+                    {key === "questions" && pending.length > 0 && tab !== key && (
+                      <span aria-hidden className="relative flex size-2.5">
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-critical opacity-70" />
+                        <span className="relative inline-flex size-2.5 rounded-full bg-critical" />
+                      </span>
+                    )}
                     {n !== null && (
-                      <span className={`rounded-full px-2 text-xs tabular-nums ${tab === key ? "bg-accent text-white" : "bg-rule text-ink"}`}>{n}</span>
+                      <span className={`rounded-full px-2 text-xs tabular-nums ${
+                        key === "questions" && n > 0 ? "bg-critical text-white" : tab === key ? "bg-accent text-white" : "bg-rule text-ink"}`}>{n}</span>
                     )}
                   </button>
                 ))}
@@ -297,7 +343,7 @@ export default function Platform() {
                 {tab === "report" && (
                   <div className="h-full overflow-y-auto">
                     {result && <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6"><RecheckCard result={result} onRef={openRef} /></div>}
-                    <SummaryTab data={data} findings={findings} onSelect={focusFinding} onFilter={applyFilter} onQuestions={showQuestions} />
+                    <SummaryTab data={data} findings={findings} onSelect={focusFinding} onFilter={applyFilter} onQuestions={showQuestions} ask={ask} />
                   </div>
                 )}
 
@@ -383,7 +429,7 @@ export default function Platform() {
 
             <aside aria-label="Чат с агентом" className={`${chatOpen ? "flex" : "hidden"} min-h-0 flex-col border-rule lg:flex lg:border-l`}>
               <ChatPane key={runId} runId={runId} data={data} answers={answers} totalQuestions={totalQuestions}
-                onQuestions={showQuestions} onRef={openRef} />
+                onAnswer={answer} onQuestions={showQuestions} onRef={openRef} />
             </aside>
           </div>
         </>

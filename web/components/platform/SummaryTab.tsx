@@ -1,4 +1,5 @@
 // Отчёт аналитики: сверху ответ на главный вопрос «можно ли начинать», дальше — что делать.
+import type { ReactNode } from "react"
 import type { Finding, ReportView, Severity } from "../api"
 import { SEVERITY, SEVERITY_ORDER, VERDICT } from "./meta"
 
@@ -8,6 +9,7 @@ type Props = {
   onSelect: (id: string) => void
   onFilter: (filter: { severity?: Severity; criterion?: string }) => void
   onQuestions: () => void
+  ask: ReactNode
 }
 
 const MEANING: Record<Severity, string> = {
@@ -22,7 +24,7 @@ const EDGE: Record<string, string> = {
   ok: "border-accent",
 }
 
-export default function SummaryTab({ data, findings, onSelect, onFilter, onQuestions }: Props) {
+export default function SummaryTab({ data, findings, onSelect, onFilter, onQuestions, ask }: Props) {
   const { report, view } = data
   const most = Math.max(1, ...Object.values(view.by_criterion))
   return (
@@ -48,6 +50,8 @@ export default function SummaryTab({ data, findings, onSelect, onFilter, onQuest
           Проверено требований: {report.requirements.length} · {report.passport.model_id} · {report.passport.run_datetime.slice(0, 10)}
         </p>
       </section>
+
+      {ask}
 
       <section aria-label="Замечания по серьёзности" className="grid gap-3 sm:grid-cols-3">
         {SEVERITY_ORDER.map((s) => (

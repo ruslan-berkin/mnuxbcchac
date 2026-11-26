@@ -18,6 +18,30 @@ type Props = {
   onRef: (id: string) => void
 }
 
+type FormProps = { question: TopQuestion; initial?: string; onAnswer: (id: string, text: string) => void }
+
+export function AnswerForm({ question: q, initial = "", onAnswer }: FormProps) {
+  const [draft, setDraft] = useState(initial)
+  return (
+    <div className="space-y-2 text-sm">
+      {q.options.length > 0 && (
+        <p className="flex flex-wrap gap-2">
+          {q.options.map((o) => (
+            <button key={o} type="button" onClick={() => onAnswer(q.finding_id, o)}
+              className="rounded-full border border-accent bg-page px-3 py-1.5 hover:bg-accent hover:text-white">{o}</button>
+          ))}
+        </p>
+      )}
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); onAnswer(q.finding_id, draft) }}>
+        <input aria-label={`Ответ на вопрос ${q.finding_id}`} value={draft} maxLength={1000} onChange={(e) => setDraft(e.target.value)}
+          placeholder="Ваш ответ" className="min-w-0 flex-1 rounded-xl border border-rule bg-page px-3 py-2" />
+        <button type="submit" disabled={!draft.trim()}
+          className="rounded-xl bg-accent px-4 py-2 font-medium text-white hover:bg-accent-deep disabled:opacity-40">Ответить</button>
+      </form>
+    </div>
+  )
+}
+
 export default function QuestionsTab({ runId, questions, total, answers, onAnswer, result, onResult, onRef }: Props) {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [checking, setChecking] = useState(false)
@@ -77,25 +101,7 @@ export default function QuestionsTab({ runId, questions, total, answers, onAnswe
                       </button>
                     </p>
                   ) : (
-                    <>
-                      {q.options.length > 0 && (
-                        <p className="flex flex-wrap gap-2 text-sm">
-                          {q.options.map((o) => (
-                            <button key={o} type="button" onClick={() => onAnswer(q.finding_id, o)}
-                              className="rounded-full border border-accent px-3 py-1.5 hover:bg-accent hover:text-white">{o}</button>
-                          ))}
-                        </p>
-                      )}
-                      <form className="flex gap-2 text-sm"
-                        onSubmit={(e) => { e.preventDefault(); onAnswer(q.finding_id, drafts[q.finding_id] ?? "") }}>
-                        <input aria-label={`Ответ на вопрос ${q.finding_id}`} value={drafts[q.finding_id] ?? ""} maxLength={1000}
-                          onChange={(e) => setDrafts((d) => ({ ...d, [q.finding_id]: e.target.value }))}
-                          placeholder="Свой ответ" className="min-w-0 flex-1 rounded-xl border border-rule px-3 py-2" />
-                        <button type="submit" className="rounded-xl border border-ink px-4 py-2 font-medium hover:bg-ink hover:text-page">
-                          Ответить
-                        </button>
-                      </form>
-                    </>
+                    <AnswerForm question={q} initial={drafts[q.finding_id]} onAnswer={onAnswer} />
                   )}
                 </div>
               </li>

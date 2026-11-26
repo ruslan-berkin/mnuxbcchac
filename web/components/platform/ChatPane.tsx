@@ -3,6 +3,7 @@
 // Только разговор с агентом: отчёт и вопросы живут в своих вкладках.
 import { useEffect, useRef, useState } from "react"
 import { streamChat, type ChatMessage, type ReportView } from "../api"
+import { AnswerForm } from "./QuestionsTab"
 import Refs from "./Refs"
 import { load, save } from "./storage"
 
@@ -11,11 +12,12 @@ type Props = {
   data: ReportView
   answers: Record<string, string>
   totalQuestions: number
+  onAnswer: (id: string, text: string) => void
   onQuestions: () => void
   onRef: (id: string) => void
 }
 
-export default function ChatPane({ runId, data, answers, totalQuestions, onQuestions, onRef }: Props) {
+export default function ChatPane({ runId, data, answers, totalQuestions, onAnswer, onQuestions, onRef }: Props) {
   const key = `sau-chat:${runId}`
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
@@ -65,6 +67,10 @@ export default function ChatPane({ runId, data, answers, totalQuestions, onQuest
     }
   }
 
+  const questions = data.view.top_questions
+  const pending = questions.filter((q) => !answers[q.finding_id])
+  const next = pending[0]
+  const done = questions.length - pending.length
   const first = data.view.priorities[0]
   const suggestions = ["Почему такой вердикт?", "Что исправить в первую очередь?", ...(first ? [`Как исправить ${first}?`] : [])]
 
@@ -79,17 +85,33 @@ export default function ChatPane({ runId, data, answers, totalQuestions, onQuest
       </header>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
-        <div className="mr-6 space-y-3 rounded-2xl rounded-tl-md bg-accent-soft p-3">
-          <p>
-            Я проверил документ: замечаний {data.report.findings.length}, критичных {data.view.by_severity.critical}. Спросите меня о
-            любом из них.
-          </p>
-          {totalQuestions > 0 && (
-            <button type="button" onClick={onQuestions} className="rounded-full bg-accent px-4 py-2 font-medium text-white hover:bg-accent-deep">
-              Ответить на мои вопросы ({totalQuestions})
-            </button>
-          )}
-        </div>
+        <p className="mr-6 rounded-2xl rounded-tl-md bg-accent-soft p-3">
+          Я проверил документ: замечаний {data.report.findings.length}, критичных {data.view.by_severity.critical}.
+          {next ? " Чтобы довести его до разработки, мне нужны ваши ответы." : " Спросите меня о любом из них."}
+        </p>
+        {questions.length > 0 && (
+          <div className="space-y-3 rounded-2xl rounded-tl-md border-2 border-accent bg-page p-3">
+            {next ? (
+              <>
+                <p className="text-xs font-semibold text-accent">Мой вопрос {done + 1} из {questions.length}</p>
+                <p className="font-medium">{next.question}</p>
+                <AnswerForm key={next.finding_id} question={next} onAnswer={onAnswer} />
+              </>
+            ) : (
+              <p className="font-medium">Спасибо, на главные вопросы вы ответили.</p>
+            )}
+            <p className="flex flex-wrap gap-3 text-xs">
+              {done > 0 && (
+                <button type="button" onClick={onQuestions} className="rounded-full bg-ink px-3 py-1.5 font-medium text-page">
+                  Перепроверить ({done})
+                </button>
+              )}
+              <button type="button" onClick={onQuestions} className="font-semibold text-accent underline underline-offset-4">
+                Все вопросы ({totalQuestions})
+              </button>
+            </p>
+          </div>
+        )}
 
         {messages.map((m, i) => (
           <p key={i} className={`whitespace-pre-wrap rounded-2xl p-3 ${m.role === "user" ? "ml-8 rounded-tr-md bg-ink text-page" : "mr-6 rounded-tl-md bg-accent-soft"}`}>
