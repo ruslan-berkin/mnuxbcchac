@@ -1,18 +1,20 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { fetchExample, type Finding, type ReportView, type Severity } from "../api"
+import { MAX_UPLOAD, createRun, fetchExample, fetchRun, type Finding, type RecheckResult, type ReportView, type RunStatus, type Severity } from "../api"
 import ChatPane from "./ChatPane"
 import DocumentPane from "./DocumentPane"
 import FindingCard from "./FindingCard"
 import RequirementsTab from "./RequirementsTab"
+import RecheckCard from "./RecheckCard"
 import SummaryTab from "./SummaryTab"
-import TopBar from "./TopBar"
+import TopBar, { type Progress } from "./TopBar"
 import { SEVERITY, SEVERITY_ORDER, scrollBehavior } from "./meta"
 
 type Tab = "summary" | "findings" | "requirements"
 type Pane = "doc" | "findings" | "chat"
 type Filters = { severity: Severity | ""; criterion: string; requirement: string }
+type Source = { kind: "example" } | { kind: "run"; id: string }
 type Jump = { kind: "doc"; id: string; n: number } | { kind: "card"; id: string; n: number }
 
 const NO_FILTERS: Filters = { severity: "", criterion: "", requirement: "" }
@@ -28,20 +30,88 @@ export default function Platform() {
   const [flashLines, setFlashLines] = useState<{ from: number; to: number; n: number } | null>(null)
   const counter = useRef(0)
 
-  const load = useCallback((signal?: AbortSignal) => {
+  const [source, setSource] = useState<Source | null>(null)
+  const [status, setStatus] = useState<RunStatus | null>(null)
+  const [progress, setProgress] = useState<Progress | null>(null)
+  const [result, setResult] = useState<RecheckResult | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [reload, setReload] = useState(0)
+
+  const open = useCallback((next: Source) => {
+    setData(null)
+    setStatus(null)
+    setProgress(null)
+    setResult(null)
     setError(null)
-    fetchExample(signal)
-      .then(setData)
-      .catch((e: Error) => {
-        if (e.name !== "AbortError") setError(e.message)
-      })
+    setSelected(null)
+    setFlashLines(null)
+    setFilters(NO_FILTERS)
+    setTab("summary")
+    setSource(next)
+    setReload((n) => n + 1)
+    window.history.replaceState(null, "", next.kind === "run" ? `?run=${next.id}` : "?example=1")
   }, [])
 
+  // Что открыть по адресу: ?run=<id> или пример.
   useEffect(() => {
+    const run = new URLSearchParams(window.location.search).get("run")
+    setSource(run && /^[0-9a-f]{32}$/.test(run) ? { kind: "run", id: run } : { kind: "example" })
+  }, [])
+
+  // Пример грузится сразу; живой прогон опрашивается, пока не завершится.
+  useEffect(() => {
+    if (!source) return
     const ctrl = new AbortController()
-    load(ctrl.signal)
-    return () => ctrl.abort()
-  }, [load])
+    let timer: number | undefined
+    const fail = (e: Error) => {
+      if (e.name !== "AbortError") setError(e.message)
+    }
+    if (source.kind === "example") {
+      fetchExample(ctrl.signal).then(setData).catch(fail)
+    } else {
+      const poll = () =>
+        fetchRun(source.id, ctrl.signal)
+          .then((s) => {
+            setStatus(s)
+            if (s.status === "done") {
+              setProgress(null)
+              setData(s as unknown as ReportView)
+            } else if (s.status === "error") {
+              setProgress(null)
+              setError(s.error ?? "Проверка не удалась.")
+            } else {
+              setProgress({ stage: s.stage, done: s.stages_done })
+              timer = window.setTimeout(poll, 1500)
+            }
+          })
+          .catch(fail)
+      poll()
+    }
+    return () => {
+      ctrl.abort()
+      window.clearTimeout(timer)
+    }
+  }, [source, reload])
+
+  const upload = useCallback(
+    async (file: File) => {
+      if (file.size > MAX_UPLOAD) {
+        setError("Файл больше 5 МБ.")
+        return
+      }
+      setUploading(true)
+      setError(null)
+      try {
+        const { run_id } = await createRun(file)
+        open({ kind: "run", id: run_id })
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [open],
+  )
 
   const findings = useMemo(
     () => new Map<string, Finding>((data?.report.findings ?? []).map((f) => [f.id, f])),
@@ -78,6 +148,11 @@ export default function Platform() {
     [data],
   )
 
+  const openRef = useCallback(
+    (id: string) => (id.startsWith("R-") ? showRequirement(id) : selectFromDoc(id)),
+    [showRequirement, selectFromDoc],
+  )
+
   const applyFilter = (f: { severity?: Severity; criterion?: string }) => {
     setFilters({ ...NO_FILTERS, ...f })
     setTab("findings")
@@ -109,12 +184,15 @@ export default function Platform() {
     [data, filters],
   )
 
-  const questions = data?.report.findings.filter((f) => f.question).length ?? 0
+  const totalQuestions = data?.report.findings.filter((f) => f.question).length ?? 0
+  const runId = source?.kind === "run" ? source.id : "example"
+  const running = source?.kind === "run" && !data && !error
   const paneClass = (name: Pane) => `${pane === name ? "block" : "hidden"} min-h-0 overflow-y-auto lg:block`
 
   return (
     <div className="flex h-dvh flex-col">
-      <TopBar report={data?.report ?? null} onExample={() => { setSelected(null); setFilters(NO_FILTERS); setTab("summary"); load() }} />
+      <TopBar report={data?.report ?? null} runId={runId} progress={progress} busy={uploading || running}
+        onUpload={upload} onExample={() => open({ kind: "example" })} />
 
       <nav aria-label="Разделы" className="grid grid-cols-3 border-b border-rule text-sm lg:hidden">
         {([["doc", "Документ"], ["findings", "Замечания"], ["chat", "Чат"]] as [Pane, string][]).map(([key, label]) => (
@@ -127,11 +205,21 @@ export default function Platform() {
 
       {error && (
         <p role="alert" className="p-4 text-critical">
-          Не удалось загрузить пример: {error}.{" "}
-          <button type="button" onClick={() => load()} className="underline">Повторить</button>
+          {error}{" "}
+          <button type="button" onClick={() => open({ kind: "example" })} className="underline">Открыть пример</button>
         </p>
       )}
-      {!data && !error && <p className="p-4 text-muted">Загружаю пример…</p>}
+      {running && (
+        <div role="status" className="m-4 rounded-2xl bg-accent-soft p-4">
+          <p className="font-semibold">{status?.name ? `Проверяю «${status.name}»…` : "Загружаю…"}</p>
+          <p className="text-sm text-muted">
+            {status?.status === "queued"
+              ? `Вы в очереди: ${status.position ?? 1}.`
+              : "Обычно это занимает несколько минут. Этапы видны сверху, страницу можно не держать открытой."}
+          </p>
+        </div>
+      )}
+      {!data && !error && !running && <p className="p-4 text-muted">Загружаю пример…</p>}
 
       {data && (
         <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,4.4fr)_minmax(0,2.6fr)]">
@@ -161,7 +249,12 @@ export default function Platform() {
               )}
             </div>
             <div className="space-y-3 p-4">
-              {tab === "summary" && <SummaryTab data={data} findings={findings} onSelect={selectFromDoc} onFilter={applyFilter} />}
+              {tab === "summary" && (
+                <>
+                  {result && <RecheckCard result={result} onRef={openRef} />}
+                  <SummaryTab data={data} findings={findings} onSelect={selectFromDoc} onFilter={applyFilter} />
+                </>
+              )}
               {tab === "requirements" && <RequirementsTab data={data} onRequirement={showRequirement} />}
               {tab === "findings" && (
                 <>
@@ -198,8 +291,9 @@ export default function Platform() {
             </div>
           </section>
 
-          <aside aria-label="Чат с агентом" className={paneClass("chat")}>
-            <ChatPane questions={questions} />
+          <aside aria-label="Чат с агентом" className={`${pane === "chat" ? "flex" : "hidden"} min-h-0 flex-col lg:flex`}>
+            <ChatPane key={runId} runId={runId} questions={data.view.top_questions} totalQuestions={totalQuestions}
+              result={result} onResult={setResult} onRef={openRef} />
           </aside>
         </main>
       )}
