@@ -114,7 +114,7 @@ def _same_topic(a: Finding, b: Finding) -> bool:
 
 
 def top_questions(findings: list[Finding], n: int = 10) -> list[TopQuestion]:
-    """Блокирующие вопросы: сначала критичные, затем затрагивающие больше требований, по одному на тему."""
+    """Блокирующие вопросы: все критичные (без них вердикт не изменить), затем существенные по одному на тему."""
     rank = {"critical": 0, "major": 1, "minor": 2}
     pool = sorted(
         (f for f in findings if f.question and f.severity in ("critical", "major")),
@@ -122,10 +122,9 @@ def top_questions(findings: list[Finding], n: int = 10) -> list[TopQuestion]:
     )
     chosen: list[Finding] = []
     for f in pool:
-        if len(chosen) >= n:
-            break
-        if not any(_same_topic(f, g) for g in chosen):
-            chosen.append(f)
+        if f.severity != "critical" and (len(chosen) >= n or any(_same_topic(f, g) for g in chosen)):
+            continue
+        chosen.append(f)
     return [TopQuestion(finding_id=f.id, question=f.question or "", severity=f.severity,
                         requirement_ids=f.requirement_ids, options=answer_options(f.question or ""))
             for f in chosen]

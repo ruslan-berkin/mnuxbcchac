@@ -7,7 +7,7 @@ import Preview from "../landing/Preview"
 import DocumentPane from "./DocumentPane"
 import FindingCard from "./FindingCard"
 import RequirementsTab from "./RequirementsTab"
-import QuestionsTab, { AnswerForm } from "./QuestionsTab"
+import QuestionsTab from "./QuestionsTab"
 import RecheckCard from "./RecheckCard"
 import SummaryTab from "./SummaryTab"
 import TopBar from "./TopBar"
@@ -238,41 +238,15 @@ export default function Platform() {
   const running = source?.kind === "run" && !data && !error
   const questions = data?.view.top_questions ?? []
   const pending = questions.filter((q) => !answers[q.finding_id])
-  const blocking = pending.filter((q) => q.severity === "critical").length
-  const next = pending[0]
-  const answeredHere = questions.length - pending.length
 
-  // Агент сам задаёт следующий вопрос прямо в отчёте: после ответа на его месте появляется новый.
-  const ask = questions.length > 0 && (
-    <section aria-label="Агент ждёт ответ" className={`space-y-3 rounded-2xl border-2 p-5 ${next ? "ask-pulse border-accent bg-accent-soft" : "border-rule bg-page"}`}>
-      {next ? (
-        <>
-          <p className="flex flex-wrap items-center gap-2">
-            <span aria-hidden className="grid size-8 place-items-center rounded-full bg-accent text-sm font-bold text-white">?</span>
-            <span className="text-lg font-semibold">Агент ждёт ваш ответ</span>
-            <span className="ml-auto text-sm text-muted">Вопрос {answeredHere + 1} из {questions.length}</span>
-          </p>
-          <p className="text-sm">
-            {blocking > 0
-              ? <><b className="text-critical">Блокирующих вопросов: {blocking}.</b> Пока на них нет ответа, разработчики будут додумывать сами.</>
-              : "Ответы помогут снять замечания до начала разработки."}
-          </p>
-          <p className="text-base font-medium">{next.question}</p>
-          <AnswerForm key={next.finding_id} question={next} onAnswer={answer} />
-        </>
-      ) : (
-        <p className="text-lg font-semibold">Все главные вопросы отвечены. Осталось перепроверить замечания.</p>
-      )}
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        {answeredHere > 0 && (
-          <button type="button" onClick={() => showQuestions()} className="rounded-full bg-ink px-4 py-2 font-medium text-page">
-            Перепроверить с ответами ({answeredHere})
-          </button>
-        )}
-        <button type="button" onClick={() => showQuestions()} className="font-semibold text-accent underline underline-offset-4">
-          Все вопросы
-        </button>
-      </div>
+  // Напоминание без самих вопросов: они на своей вкладке.
+  const ask = pending.length > 0 && (
+    <section aria-label="Агент ждёт ответ" className="ask-pulse flex flex-wrap items-center gap-3 rounded-2xl border-2 border-accent bg-accent-soft p-5">
+      <span aria-hidden className="grid size-8 place-items-center rounded-full bg-accent text-sm font-bold text-white">?</span>
+      <span className="text-lg font-semibold">Агент ждёт ваш ответ</span>
+      <button type="button" onClick={showQuestions} className="ml-auto font-semibold text-accent underline underline-offset-4">
+        Ответить на все вопросы
+      </button>
     </section>
   )
   const tabs: [Tab, string, number | null][] = [
@@ -343,7 +317,7 @@ export default function Platform() {
                 {tab === "report" && (
                   <div className="h-full overflow-y-auto">
                     {result && <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6"><RecheckCard result={result} onRef={openRef} /></div>}
-                    <SummaryTab data={data} findings={findings} onSelect={focusFinding} onFilter={applyFilter} onQuestions={showQuestions} ask={ask} />
+                    <SummaryTab data={data} findings={findings} onSelect={focusFinding} onFilter={applyFilter} ask={ask} />
                   </div>
                 )}
 
@@ -428,8 +402,7 @@ export default function Platform() {
             </main>
 
             <aside aria-label="Чат с агентом" className={`${chatOpen ? "flex" : "hidden"} min-h-0 flex-col border-rule lg:flex lg:border-l`}>
-              <ChatPane key={runId} runId={runId} data={data} answers={answers} totalQuestions={totalQuestions}
-                onAnswer={answer} onQuestions={showQuestions} onRef={openRef} />
+              <ChatPane key={runId} runId={runId} data={data} answers={answers} onRef={openRef} />
             </aside>
           </div>
         </>

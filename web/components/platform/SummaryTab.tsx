@@ -8,7 +8,6 @@ type Props = {
   findings: Map<string, Finding>
   onSelect: (id: string) => void
   onFilter: (filter: { severity?: Severity; criterion?: string }) => void
-  onQuestions: () => void
   ask: ReactNode
 }
 
@@ -24,9 +23,87 @@ const EDGE: Record<string, string> = {
   ok: "border-accent",
 }
 
-export default function SummaryTab({ data, findings, onSelect, onFilter, onQuestions, ask }: Props) {
+// цвета проверены на различимость (порядок фиксирован), «остальные» — нейтральный серый
+const SLICES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]
+const REST = "#b7beba"
+
+type Slice = { code: string | null; title: string; n: number; color: string }
+
+function sector(from: number, to: number): string {
+  const point = (share: number) => {
+    const a = share * 2 * Math.PI - Math.PI / 2
+    return `${(100 + 96 * Math.cos(a)).toFixed(2)} ${(100 + 96 * Math.sin(a)).toFixed(2)}`
+  }
+  return `M100 100L${point(from)}A96 96 0 ${to - from > 0.5 ? 1 : 0} 1 ${point(to)}Z`
+}
+
+function CriteriaPie({ data, onFilter }: { data: ReportView; onFilter: (f: { criterion?: string }) => void }) {
+  const { view } = data
+  const all = Object.entries(view.by_criterion).sort((a, b) => b[1] - a[1])
+  const total = all.reduce((sum, [, n]) => sum + n, 0)
+  if (!total) return null
+  const top: Slice[] = all.slice(0, 5).map(([code, n], i) => ({ code, title: view.criteria[code]?.title ?? code, n, color: SLICES[i] }))
+  const rest = all.slice(5)
+  const slices = rest.length
+    ? [...top, { code: null, title: "Остальные", n: rest.reduce((sum, [, n]) => sum + n, 0), color: REST }]
+    : top
+  let start = 0
+  return (
+    <section className="space-y-3 rounded-2xl border border-rule bg-page p-5">
+      <h2 className="text-lg font-semibold">Какие критерии нарушены</h2>
+      <div className="grid items-center gap-5 sm:grid-cols-[13rem_1fr]">
+        <svg viewBox="0 0 200 200" role="img" aria-label="Доли замечаний по критериям" className="mx-auto w-52">
+          {slices.map((s) => {
+            const from = start
+            start += s.n / total
+            const label = `${s.title}: ${s.n} из ${total}`
+            const props = {
+              fill: s.color,
+              stroke: "#fff",
+              strokeWidth: 2,
+              className: s.code ? "cursor-pointer transition-opacity hover:opacity-75" : "",
+              onClick: () => s.code && onFilter({ criterion: s.code }),
+            }
+            return slices.length === 1 ? (
+              <circle key={s.title} cx="100" cy="100" r="96" {...props}><title>{label}</title></circle>
+            ) : (
+              <path key={s.title} d={sector(from, start)} {...props}><title>{label}</title></path>
+            )
+          })}
+        </svg>
+        <ul className="text-sm">
+          {slices.map((s) => (
+            <li key={s.title}>
+              <button type="button" disabled={!s.code} onClick={() => s.code && onFilter({ criterion: s.code })}
+                className="grid w-full grid-cols-[0.75rem_minmax(0,1fr)_auto_3rem] items-center gap-2 rounded-lg px-2 py-1.5 text-left enabled:hover:bg-accent-soft">
+                <span aria-hidden className="size-3 rounded-sm" style={{ background: s.color }} />
+                <span className="truncate">{s.title} {s.code && <code className="text-xs text-muted">{s.code}</code>}</span>
+                <span className="font-semibold tabular-nums">{s.n}</span>
+                <span className="text-right text-muted tabular-nums">{Math.round((s.n / total) * 100)}%</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {rest.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-muted hover:text-ink">Что входит в «остальные»</summary>
+          <p className="mt-2 flex flex-wrap gap-2">
+            {rest.map(([code, n]) => (
+              <button key={code} type="button" onClick={() => onFilter({ criterion: code })}
+                className="rounded-full border border-rule px-3 py-1 hover:border-ink">
+                {view.criteria[code]?.title} <code className="text-xs text-muted">{code}</code> <b>{n}</b>
+              </button>
+            ))}
+          </p>
+        </details>
+      )}
+    </section>
+  )
+}
+
+export default function SummaryTab({ data, findings, onSelect, onFilter, ask }: Props) {
   const { report, view } = data
-  const most = Math.max(1, ...Object.values(view.by_criterion))
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-4 md:p-6">
       <section aria-label="Вердикт" className={`space-y-3 rounded-2xl border border-rule border-l-8 bg-page p-5 ${EDGE[report.verdict.code]}`}>
@@ -41,9 +118,6 @@ export default function SummaryTab({ data, findings, onSelect, onFilter, onQuest
         <div className="flex flex-wrap gap-2 pt-1 text-sm">
           <button type="button" onClick={() => onFilter({})} className="rounded-full bg-ink px-4 py-2 font-medium text-page">
             Смотреть замечания ({report.findings.length})
-          </button>
-          <button type="button" onClick={onQuestions} className="rounded-full border border-ink px-4 py-2 font-medium hover:bg-accent-soft">
-            Ответить на вопросы агента
           </button>
         </div>
         <p className="text-xs text-muted">
@@ -63,6 +137,8 @@ export default function SummaryTab({ data, findings, onSelect, onFilter, onQuest
           </button>
         ))}
       </section>
+
+      <CriteriaPie data={data} onFilter={onFilter} />
 
       {view.priorities.length > 0 && (
         <section className="space-y-3">
@@ -95,27 +171,10 @@ export default function SummaryTab({ data, findings, onSelect, onFilter, onQuest
         </section>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Какие критерии нарушены</h2>
-        <ul className="rounded-2xl border border-rule bg-page p-2">
-          {Object.entries(view.by_criterion).map(([code, n]) => (
-            <li key={code}>
-              <button type="button" onClick={() => onFilter({ criterion: code })}
-                className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-accent-soft">
-                <span className="truncate">{view.criteria[code]?.title} <code className="text-xs text-muted">{code}</code></span>
-                <span aria-hidden className="h-2 rounded-full bg-rule">
-                  <span className="block h-full rounded-full bg-accent" style={{ width: `${(n / most) * 100}%` }} />
-                </span>
-                <span className="text-right font-semibold tabular-nums">{n}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <p className="text-xs text-muted">
-          Объединено дублей: {report.merged_count} · снято перепроверкой: {report.verifier_rejected} · отброшено цитат:{" "}
-          {report.dropped_count}
-        </p>
-      </section>
+      <p className="text-xs text-muted">
+        Объединено дублей: {report.merged_count} · снято перепроверкой: {report.verifier_rejected} · отброшено цитат:{" "}
+        {report.dropped_count}
+      </p>
     </div>
   )
 }

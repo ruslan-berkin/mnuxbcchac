@@ -63,6 +63,12 @@ def test_top_questions_order_topics_and_limit():
     assert len(top_questions([_f(i, reqs=(f"R-{i:02d}",)) for i in range(1, 30)], n=10)) == 10
 
 
+def test_top_questions_never_drop_a_critical_one():
+    # две критичные на одну тему и лимит меньше числа критичных: пропуск любой не даст изменить вердикт
+    fs = [_f(i, "critical", ("R-01", "R-02")) for i in range(1, 4)] + [_f(4, "major", ("R-05",))]
+    assert [q.finding_id for q in top_questions(fs, n=2)] == ["D-001", "D-002", "D-003"]
+
+
 @pytest.mark.parametrize("question,expected", [
     ("В каких единицах хранится сумма: в тиынах или в тенге?", ["В тиынах", "В тенге"]),
     ("Что считать проведённой операцией, авторизацию или клиринг?", ["Авторизацию", "Клиринг"]),
