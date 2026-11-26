@@ -55,7 +55,7 @@ render.yaml              blueprint для Render (free web service, Docker)
 | `--accent-soft` | `#E7F3EA` | фон подсветки цитат |
 | критичное / существенное / незначительное | `#C2410C` / `#B7791F` / `#64748B` | цвет серьёзности |
 
-Шрифт: Inter Tight → Inter → system-ui. Заголовки крупные, плотные (`letter-spacing:-.04em`), как в шаблоне.
+Шрифты (правка 27.11): Unbounded для wordmark и крупных надписей, Onest для всего остального.
 
 ## 3. Лендинг `/` — сверху вниз (по эскизу)
 

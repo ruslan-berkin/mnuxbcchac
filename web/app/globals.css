@@ -25,7 +25,8 @@
   --color-critical: var(--sev-critical);
   --color-major: var(--sev-major);
   --color-minor: var(--sev-minor);
-  --font-sans: "Inter Tight Variable", "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-sans: "Onest Variable", system-ui, sans-serif;
+  --font-display: "Unbounded Variable", "Onest Variable", system-ui, sans-serif;
 }
 
 body {
@@ -37,7 +38,7 @@ body {
 h1,
 h2,
 h3 {
-  letter-spacing: -0.04em;
+  letter-spacing: -0.025em;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -78,47 +79,135 @@ html {
   margin-bottom: -0.1em;
 }
 
-/* Кольцо карточек: восемь штук по кругу, наклонено и вращается вокруг своей оси */
+.wordmark {
+  background: linear-gradient(115deg, var(--accent-deep) 10%, var(--accent) 55%, #2fbf74);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Живой фон */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.backdrop-grid {
+  position: absolute;
+  inset: -56px;
+  background-image: linear-gradient(rgba(17, 55, 44, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 55, 44, 0.065) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: grid-slide 18s linear infinite;
+}
+@keyframes grid-slide {
+  to {
+    transform: translate(56px, 56px);
+  }
+}
+.blob {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  animation: blob-move 22s ease-in-out infinite alternate;
+}
+.blob-a {
+  top: -22vmax;
+  left: -18vmax;
+  background: radial-gradient(closest-side, rgba(21, 158, 98, 0.22), transparent);
+}
+.blob-b {
+  top: 25vh;
+  right: -28vmax;
+  background: radial-gradient(closest-side, rgba(138, 11, 25, 0.11), transparent);
+  animation-duration: 27s;
+  animation-delay: -9s;
+}
+.blob-c {
+  bottom: -30vmax;
+  left: 18vw;
+  background: radial-gradient(closest-side, rgba(75, 224, 148, 0.2), transparent);
+  animation-duration: 31s;
+  animation-delay: -17s;
+}
+@keyframes blob-move {
+  to {
+    transform: translate(14vw, 12vh) scale(1.18);
+  }
+}
+.drift {
+  position: absolute;
+  top: 105vh;
+  white-space: nowrap;
+  border: 1px solid rgba(17, 55, 44, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  animation: drift-up var(--t) linear var(--d) infinite;
+}
+.drift b {
+  color: var(--accent);
+}
+@keyframes drift-up {
+  to {
+    transform: translateY(-120vh);
+  }
+}
+@media (max-width: 1099px) {
+  .drift {
+    display: none;
+  }
+}
+
+/* Кольцо карточек: восемь штук по широкому кругу, наклонено и вращается вокруг своей оси */
 .ring-wordmark {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  left: 1%;
+  top: 50%;
+  width: 98%;
+  transform: translateY(-50%);
   user-select: none;
-  white-space: nowrap;
-  font-size: 25vw;
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-size: 210px;
   font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.05em;
-  color: var(--ink);
-  transform: scaleY(1.5);
 }
 .ring-stage {
-  --card-w: clamp(96px, 16vw, 230px);
+  --card-w: clamp(104px, 15vw, 220px);
   --card-h: calc(var(--card-w) * 1.32);
+  --ring-r: calc(var(--card-w) * 2.4);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(var(--card-h) * 2.4);
-  perspective: 1600px;
+  height: calc(var(--card-w) * 3.5);
+  perspective: 2400px;
+}
+@media (max-width: 639px) {
+  .ring-stage {
+    --ring-r: calc(var(--card-w) * 1.55);
+  }
 }
 .ring-tilt {
   position: relative;
   width: var(--card-w);
   height: var(--card-h);
   transform-style: preserve-3d;
-  transform: translateZ(calc(var(--card-w) * -1.4)) rotateZ(-7deg) rotateX(-18deg);
+  transform: translateZ(calc(var(--ring-r) * -1)) rotateZ(-6deg) rotateX(-15deg);
 }
-.ring,
+.ring-spin,
 .ring-item {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
 }
-.ring {
-  animation: ring-spin 32s linear infinite;
+.ring-spin {
+  animation: ring-spin 34s linear infinite;
 }
 @keyframes ring-spin {
   to {
@@ -126,9 +215,9 @@ html {
   }
 }
 .ring-item {
-  transform: rotateY(calc(var(--i) * 45deg)) translateZ(calc(var(--card-w) * 1.65));
+  transform: rotateY(calc(var(--i) * 45deg)) translateZ(var(--ring-r));
 }
-/* Прозрачная стеклянная карточка: диагональный блик и светлые кромки сверху и снизу */
+/* Стеклянная карточка: диагональный блик и светлые кромки сверху и снизу */
 .glass {
   position: absolute;
   inset: 0;
@@ -136,43 +225,150 @@ html {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
+  gap: 0.8rem;
   overflow: hidden;
-  border: 1px solid rgba(11, 15, 13, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: calc(var(--card-w) * 0.1);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0 49.6%, rgba(236, 241, 239, 0.7) 50%);
-  box-shadow: inset 0 14px 22px -12px #fff, inset 0 -14px 22px -12px #fff, inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 24px 40px -28px rgba(11, 15, 13, 0.45);
+  box-shadow: inset 0 16px 24px -16px rgba(255, 255, 255, 0.9), inset 0 -16px 24px -16px rgba(255, 255, 255, 0.75),
+    0 28px 44px -28px rgba(11, 15, 13, 0.55);
   text-align: center;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
-/* изнанка дальних карточек: то же содержимое, не зеркальное и бледнее */
 .glass-back {
   transform: rotateY(180deg);
-  opacity: 0.5;
+  opacity: 0.55;
+}
+.card-bcc {
+  background: linear-gradient(160deg, rgba(34, 178, 113, 0.93) 0 49.6%, rgba(17, 142, 87, 0.9) 50%);
+  color: #fff;
+}
+.card-mnu {
+  background: linear-gradient(160deg, rgba(158, 20, 37, 0.93) 0 49.6%, rgba(126, 9, 23, 0.9) 50%);
+  color: #fff;
+}
+.card-sau {
+  border-color: rgba(11, 15, 13, 0.16);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9) 0 49.6%, rgba(232, 240, 236, 0.82) 50%);
 }
 .ring-caption {
   padding: 0 0.5rem;
-  font-size: max(10px, calc(var(--card-w) * 0.055));
-  color: var(--muted);
+  font-size: max(10px, calc(var(--card-w) * 0.062));
+  opacity: 0.8;
 }
 
-/* Планшет */
+/* Планшет: на широком экране девушка стоит на верхней кромке, стрелка ведёт от ладони к кнопке */
+.tablet-wrap {
+  position: relative;
+  margin-inline: auto;
+  width: min(100%, 880px, calc((100svh - 96px) * 1.03));
+}
 .stage {
   perspective: 1800px;
 }
+.girl {
+  position: relative;
+  z-index: 20;
+  display: block;
+  width: 10rem;
+  margin: 0 auto -0.75rem;
+  pointer-events: none;
+}
+.arrow {
+  display: none;
+}
 .tablet {
-  aspect-ratio: 7 / 5;
-  border-radius: clamp(18px, 3.4vw, 38px);
+  aspect-ratio: 4 / 5;
+  border-radius: clamp(22px, 3.6vw, 40px);
   background: var(--ink);
-  padding: clamp(7px, 1.5vw, 18px);
-  box-shadow: inset 0 0 0 2px #3a423f, 0 50px 80px -40px rgba(11, 15, 13, 0.55);
+  padding: clamp(8px, 1.5vw, 17px);
+  box-shadow: inset 0 0 0 2px #3a423f, 0 60px 90px -45px rgba(11, 15, 13, 0.6);
+}
+@media (min-width: 768px) {
+  .tablet-wrap {
+    aspect-ratio: 1000 / 965;
+  }
+  .girl {
+    position: absolute;
+    top: 0;
+    left: 21%;
+    width: 25%;
+    margin: 0;
+  }
+  .tablet-slot {
+    position: absolute;
+    inset: 26% 0 0;
+  }
+  .tablet {
+    aspect-ratio: 7 / 5;
+  }
+  .arrow {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    fill: none;
+    stroke: #35c27e;
+    stroke-width: 7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .arrow path {
+    stroke-dasharray: 1;
+    animation: nudge 1.6s ease-in-out infinite;
+  }
+}
+@keyframes nudge {
+  50% {
+    transform: translateY(8px);
+  }
 }
 .tablet-screen {
   position: relative;
   height: 100%;
   overflow: hidden;
-  border-radius: clamp(11px, 2vw, 22px);
-  background: var(--page);
+  border-radius: clamp(14px, 2.2vw, 24px);
+  background: #0c2a1f;
+  padding: 4%;
+}
+.tablet-screen::before,
+.tablet-screen::after {
+  content: "";
+  position: absolute;
+  width: 80%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(46, 191, 116, 0.55), transparent);
+  animation: blob-move 14s ease-in-out infinite alternate;
+}
+.tablet-screen::before {
+  top: -35%;
+  left: -20%;
+}
+.tablet-screen::after {
+  right: -30%;
+  bottom: -45%;
+  animation-delay: -7s;
+}
+.dropzone {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border: 2px dashed rgba(255, 255, 255, 0.28);
+  border-radius: clamp(10px, 1.6vw, 18px);
+  padding: 1rem;
+  text-align: center;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.dropzone-over {
+  border-color: #4be094;
+  background: rgba(75, 224, 148, 0.12);
 }

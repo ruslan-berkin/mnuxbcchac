@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import type { ReactNode } from "react"
-import "@fontsource-variable/inter-tight"
+import "@fontsource-variable/onest"
+import "@fontsource-variable/unbounded"
 import "./globals.css"
 
 export const metadata: Metadata = {

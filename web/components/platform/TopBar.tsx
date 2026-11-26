@@ -36,7 +36,7 @@ export default function TopBar({ report, runId, progress, busy, onUpload, onExam
   return (
     <header className="space-y-2 border-b border-rule px-4 py-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/" className="text-lg font-semibold">sau.ai</Link>
+        <Link href="/" className="font-display text-base font-semibold">sau.ai</Link>
         <input ref={input} type="file" accept={ACCEPTED} className="sr-only" tabIndex={-1} aria-hidden
           onChange={(e) => {
             const file = e.target.files?.[0]

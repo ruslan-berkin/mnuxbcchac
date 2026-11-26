@@ -9,7 +9,7 @@ export default function Wave({ id, reverse = false, tone }: { id: string; revers
     <div aria-hidden className="relative w-full overflow-hidden py-2">
       <svg viewBox="0 0 1440 120" preserveAspectRatio="xMidYMid slice" className="h-20 w-full md:h-28">
         <path id={id} d={PATH} fill="none" stroke={tone === "ink" ? "var(--ink)" : "var(--accent)"} strokeWidth="46" strokeLinecap="round" />
-        <text dy="8" className="fill-white text-[22px] font-semibold tracking-wide">
+        <text dy="8" className="font-display fill-white text-[17px] font-semibold">
           <textPath href={`#${id}`} startOffset="0" data-wave={reverse ? "reverse" : "forward"}>
             {LINE.repeat(3)}
           </textPath>

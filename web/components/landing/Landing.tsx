@@ -5,6 +5,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { MAX_UPLOAD, createRun, fetchExample, fetchRun, type ReportView, type RunStatus } from "../api"
 import { scrollBehavior } from "../platform/meta"
+import Backdrop from "./Backdrop"
 import Footer from "./Footer"
 import Hero from "./Hero"
 import Nav from "./Nav"
@@ -81,32 +82,46 @@ export default function Landing() {
         yPercent: 105, ease: "none", stagger: 0.05,
         scrollTrigger: { trigger: "[data-bigmark]", start: "top bottom", end: "bottom bottom", scrub: 0.6 },
       })
-      // Волны: смещение textPath на ширину одной копии строки, бесконечно, в противоположные стороны.
-      gsap.utils.toArray<SVGTextPathElement>("[data-wave]").forEach((el) => {
-        const copy = el.getComputedTextLength() / 3
-        if (!copy) return
-        const reverse = el.dataset.wave === "reverse"
-        gsap.fromTo(el, { attr: { startOffset: reverse ? -copy : 0 } },
-          { attr: { startOffset: reverse ? 0 : -copy }, duration: copy / 60, ease: "none", repeat: -1 })
+      // Волны: смещение textPath на ширину одной копии строки. Длину меряем после загрузки шрифта, иначе виден шов.
+      const waves: gsap.core.Tween[] = []
+      let alive = true
+      document.fonts.ready.then(() => {
+        if (!alive) return
+        gsap.utils.toArray<SVGTextPathElement>("[data-wave]").forEach((el) => {
+          const copy = el.getComputedTextLength() / 3
+          if (!copy) return
+          const reverse = el.dataset.wave === "reverse"
+          waves.push(gsap.fromTo(el, { attr: { startOffset: reverse ? -copy : 0 } },
+            { attr: { startOffset: reverse ? 0 : -copy }, duration: copy / 60, ease: "none", repeat: -1 }))
+        })
       })
-      return () => safety.forEach((t) => window.clearTimeout(t))
+      return () => {
+        alive = false
+        waves.forEach((t) => t.kill())
+        safety.forEach((t) => window.clearTimeout(t))
+      }
     })
     // Планшет выезжает под углом и по мере скролла разворачивается к зрителю.
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       gsap.fromTo("[data-tablet]",
         { rotationX: 46, rotationY: -30, rotationZ: 9, y: 120, scale: 0.72 },
         { rotationX: 0, rotationY: 0, rotationZ: 0, y: 0, scale: 1, ease: "none",
-          scrollTrigger: { trigger: "[data-tablet-section]", start: "top 90%", end: "top 15%", scrub: 0.6 } })
-      // Девушка выезжает с лёгким отскоком, когда планшет почти развернулся.
+          scrollTrigger: { trigger: "[data-tablet-section]", start: "top 90%", end: "top 8%", scrub: 0.6 } })
+      // Когда планшет почти развернулся, сверху выпрыгивает девушка и прорисовывается стрелка к загрузке.
       let timer = 0
-      gsap.set("[data-girl]", { x: -90, autoAlpha: 0 })
+      gsap.set("[data-girl]", { y: 90, autoAlpha: 0 })
+      gsap.set("[data-arrow]", { autoAlpha: 0 })
+      gsap.set("[data-stroke]", { strokeDashoffset: 1 })
       ScrollTrigger.create({
         trigger: "[data-tablet-section]",
-        start: "top 40%",
+        start: "top 35%",
         once: true,
         onEnter: () => {
-          const tween = gsap.to("[data-girl]", { x: 0, autoAlpha: 1, duration: 1, ease: "back.out(2.2)" })
-          timer = window.setTimeout(() => tween.progress(1), 1600)
+          const tl = gsap.timeline()
+            .to("[data-girl]", { y: 0, autoAlpha: 1, duration: 0.8, ease: "back.out(1.8)" })
+            .set("[data-arrow]", { autoAlpha: 1 })
+            .to("[data-stroke]", { strokeDashoffset: 0, duration: 0.45, ease: "power2.out", stagger: 0.35 })
+          timer = window.setTimeout(() => tl.progress(1), 2400)
         },
       })
       return () => window.clearTimeout(timer)
@@ -127,6 +142,7 @@ export default function Landing() {
 
   return (
     <div ref={root}>
+      <Backdrop />
       <Nav />
       <main>
         <Hero busy={uploading || active} error={error} onUpload={upload} />

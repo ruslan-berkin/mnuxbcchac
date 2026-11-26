@@ -20,7 +20,7 @@ export default function PlatformBlock({ data, run, result }: Props) {
         <Link href={href} aria-label="Открыть платформу" className="absolute inset-0 z-10 rounded-[2.5rem]" />
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.35fr_0.7fr]">
           <div className="space-y-5" data-rise>
-            <h2 className="text-4xl font-semibold leading-[1.05] md:text-5xl">
+            <h2 className="font-display text-3xl font-semibold leading-[1.15] md:text-4xl">
               Проверка ТЗ — <span className="text-[#7fd49b]">за минуты</span>
             </h2>
             <span className="inline-block rounded-full bg-page px-5 py-3 font-medium text-ink">

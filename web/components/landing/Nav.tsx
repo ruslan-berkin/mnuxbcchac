@@ -4,7 +4,7 @@ export default function Nav() {
   return (
     <header className="sticky top-0 z-30 border-b border-rule/70 bg-page/75 backdrop-blur-md">
       <nav aria-label="Главное меню" className="mx-auto flex max-w-7xl items-center gap-6 px-5 py-3">
-        <a href="#top" className="text-xl font-semibold tracking-tight">sau.ai</a>
+        <a href="#top" className="font-display text-lg font-semibold tracking-tight">sau.ai</a>
         <ul className="ml-4 hidden gap-6 text-sm text-muted md:flex">
           <li><a href="#how" className="hover:text-ink">Как работает</a></li>
           <li><a href="#platform" className="hover:text-ink">Платформа</a></li>

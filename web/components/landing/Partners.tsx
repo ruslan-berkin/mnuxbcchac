@@ -21,15 +21,21 @@ const CARDS = [
 export default function Partners() {
   return (
     <section id="bcc" className="mx-auto max-w-7xl px-5 py-20">
-      <p id="how" className="flex flex-wrap items-center justify-center gap-4 text-6xl font-bold tracking-tighter md:gap-8 md:text-8xl" data-rise>
-        <span className="rounded-3xl bg-accent-deep px-6 py-2 text-white">BCC</span>
+      <p id="how" className="flex flex-wrap items-center justify-center gap-4 text-4xl md:gap-8 md:text-6xl" data-rise>
+        <span className="card-bcc grid h-28 w-40 place-items-center rounded-3xl md:h-40 md:w-60">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logos/bcc.png" alt="BCC" className="w-[44%]" />
+        </span>
         <span className="text-muted">×</span>
-        <span className="text-ink">MNU</span>
+        <span className="card-mnu grid h-28 w-40 place-items-center rounded-3xl md:h-40 md:w-60">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logos/mnu.png" alt="MNU" className="w-[82%]" />
+        </span>
       </p>
       <ul className="mt-14 grid gap-4 md:grid-cols-3">
         {CARDS.map((c) => (
           <li key={c.title} data-rise>
-            <Link href="/app/?example=1" className="block h-full rounded-3xl border border-rule p-7 transition hover:-translate-y-1 hover:border-ink">
+            <Link href="/app/?example=1" className="block h-full rounded-3xl border border-rule bg-page p-7 transition hover:-translate-y-1 hover:border-ink">
               <svg aria-hidden viewBox="0 0 24 24" className="size-10 fill-none stroke-accent" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d={c.icon} />
               </svg>
