@@ -282,53 +282,67 @@ html {
   overflow: visible;
   pointer-events: none;
 }
-@media (min-width: 768px) {
-  .girl-place {
-    transform: translateX(44px);
-  }
-}
 .girl-text {
   font-family: var(--font-display);
   font-weight: 800;
 }
 .girl-breathe {
-  animation: girl-breathe 3.4s ease-in-out infinite;
+  animation: girl-breathe 4s ease-in-out infinite;
 }
+/* начала координат — суставы и центры из Girl.tsx */
 .girl-head {
   transform-origin: 320px 180px;
-  animation: girl-tilt 6s ease-in-out infinite;
+  animation: girl-tilt 7s ease-in-out infinite;
 }
 .girl-hair {
-  transform-origin: 320px 80px;
-  animation: girl-tilt 6s ease-in-out -0.5s infinite;
+  transform-origin: 320px 90px;
+  animation: girl-tilt 7s ease-in-out -0.6s infinite;
 }
 .girl-eyes {
   transform-origin: 320px 118px;
-  animation: girl-blink 4.2s infinite;
+  animation: girl-blink 4.5s infinite;
 }
-.girl-point {
-  transform-origin: 270px 335px;
-  animation: girl-point 1.3s ease-in-out infinite;
+/* тычок: 0% и 100% — локоть чуть согнут, 50% — палец касается края кнопки (углы посчитаны обратной кинематикой) */
+.girl-upper {
+  transform-origin: 240px 262px;
+  animation: girl-upper 1.8s ease-in-out infinite;
 }
-.girl-tap {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 5;
-  transform-origin: 570px 360px;
-  animation: girl-tap 1.3s ease-out infinite;
+.girl-fore {
+  transform-origin: 347px 360px;
+  animation: girl-fore 1.8s ease-in-out infinite;
+}
+@keyframes girl-upper {
+  0%,
+  100% {
+    transform: rotate(9.4deg);
+  }
+  45%,
+  60% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes girl-fore {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  45%,
+  60% {
+    transform: rotate(0deg);
+  }
 }
 @keyframes girl-breathe {
   50% {
-    transform: translateY(-5px);
+    transform: translateY(-2px);
   }
 }
 @keyframes girl-tilt {
   0%,
   100% {
-    transform: rotate(-1.5deg);
+    transform: rotate(-1deg);
   }
   50% {
-    transform: rotate(4deg);
+    transform: rotate(2.5deg);
   }
 }
 @keyframes girl-blink {
@@ -339,25 +353,6 @@ html {
   }
   96% {
     transform: scaleY(0.08);
-  }
-}
-@keyframes girl-point {
-  50% {
-    transform: translateX(14px);
-  }
-}
-@keyframes girl-tap {
-  0%,
-  35% {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-  55% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(3);
   }
 }
 

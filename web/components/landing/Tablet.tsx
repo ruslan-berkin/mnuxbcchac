@@ -25,8 +25,8 @@ export default function Tablet({ busy, error, onUpload }: Props) {
                   const file = e.dataTransfer.files[0]
                   if (file && !busy) onUpload(file)
                 }}>
-                {/* Кнопка ровно в центре планшета (туда указывает палец), подписи под ней вне потока. */}
-                <div className="relative translate-x-3.5 md:translate-x-0">
+                {/* Кнопка ровно в центре планшета (его края касается палец), подписи под ней вне потока. */}
+                <div className="relative">
                   <Upload busy={busy} onUpload={onUpload}
                     className="shine whitespace-nowrap rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-[0_20px_44px_-16px_var(--accent)] transition hover:bg-accent-deep disabled:opacity-60 md:px-10 md:py-5 md:text-2xl" />
                   <div className="absolute left-1/2 top-full w-max -translate-x-1/2 pt-1.5 md:pt-4">
