@@ -10,7 +10,8 @@ import Hero from "./Hero"
 import Nav from "./Nav"
 import Partners from "./Partners"
 import PlatformBlock from "./PlatformBlock"
-import Showcase from "./Showcase"
+import Ring from "./Ring"
+import Tablet from "./Tablet"
 import Wave from "./Wave"
 
 const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect
@@ -90,37 +91,18 @@ export default function Landing() {
       })
       return () => safety.forEach((t) => window.clearTimeout(t))
     })
-    // Ноутбук: на широком экране секция закреплена и скролл «открывает» его; на телефоне — только появление.
-    mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
-      const section = "[data-showcase]"
-      const fill = () => {
-        const laptop = root.current?.querySelector<HTMLElement>("[data-laptop]")
-        if (!laptop) return 1
-        return Math.min((window.innerWidth * 0.92) / laptop.offsetWidth, (window.innerHeight - 110) / laptop.offsetHeight)
-      }
-      const tl = gsap.timeline({
-        defaults: { ease: "none" },
-        scrollTrigger: { trigger: section, start: "top top+=56", end: "+=170%", pin: true, scrub: 0.8, invalidateOnRefresh: true },
-      })
-      tl.fromTo("[data-laptop]",
-        { rotationX: -28, rotationY: -35, y: () => window.innerHeight * 0.12, scale: 0.55 },
-        { rotationX: 0, rotationY: 0, y: 0, scale: 0.86, duration: 1, ease: "power1.inOut" }, 0)
-      tl.fromTo("[data-lid]", { rotationX: -90, y: -10 }, { rotationX: 0, y: 0, duration: 0.85, ease: "power1.inOut" }, 0.2)
-      tl.to("[data-laptop]", { scale: fill, duration: 0.55, ease: "power2.out" }, 1)
-      tl.to("[data-wordmark]", { yPercent: -45, autoAlpha: 0.15, duration: 0.7 }, 0.85)
-      tl.to({}, { duration: 0.25 }) // пауза: экран крупно перед тем, как секция отпустит скролл
-    })
-    mm.add("(max-width: 767px) and (prefers-reduced-motion: no-preference)", () => {
-      gsap.from("[data-laptop]", { y: 60, autoAlpha: 0, duration: 0.9, ease: "power3.out",
-        scrollTrigger: { trigger: "[data-showcase]", start: "top 75%", once: true } })
-    })
-    // Девушка выезжает с лёгким отскоком, когда блок платформы вошёл в экран (после анимации ноутбука).
+    // Планшет выезжает под углом и по мере скролла разворачивается к зрителю.
     mm.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.fromTo("[data-tablet]",
+        { rotationX: 46, rotationY: -30, rotationZ: 9, y: 120, scale: 0.72 },
+        { rotationX: 0, rotationY: 0, rotationZ: 0, y: 0, scale: 1, ease: "none",
+          scrollTrigger: { trigger: "[data-tablet-section]", start: "top 90%", end: "top 15%", scrub: 0.6 } })
+      // Девушка выезжает с лёгким отскоком, когда планшет почти развернулся.
       let timer = 0
       gsap.set("[data-girl]", { x: -90, autoAlpha: 0 })
       ScrollTrigger.create({
-        trigger: "[data-platform]",
-        start: "top 55%",
+        trigger: "[data-tablet-section]",
+        start: "top 40%",
         once: true,
         onEnter: () => {
           const tween = gsap.to("[data-girl]", { x: 0, autoAlpha: 1, duration: 1, ease: "back.out(2.2)" })
@@ -149,8 +131,9 @@ export default function Landing() {
       <main>
         <Hero busy={uploading || active} error={error} onUpload={upload} />
         <Wave id="wave-top" tone="ink" />
-        <Showcase data={data} />
+        <Ring />
         <Wave id="wave-bottom" tone="accent" reverse />
+        <Tablet busy={uploading || active} error={error} onUpload={upload} />
         <PlatformBlock data={data} run={run} result={result} />
         <Partners />
       </main>

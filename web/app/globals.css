@@ -78,100 +78,101 @@ html {
   margin-bottom: -0.1em;
 }
 
-/* Ноутбук: крышка шарниром на нижнем краю, корпус лежит в плоскости XZ и уходит к зрителю */
-.stage {
-  perspective: 1800px;
-  perspective-origin: 50% 30%;
-}
-.laptop {
-  position: relative;
-  transform-style: preserve-3d;
-  aspect-ratio: 16 / 10;
-}
-.lid {
+/* Кольцо карточек: восемь штук по кругу, наклонено и вращается вокруг своей оси */
+.ring-wordmark {
   position: absolute;
   inset: 0;
-  transform-origin: 50% 100%;
-  transform-style: preserve-3d;
-}
-.lid-front,
-.lid-back {
-  position: absolute;
-  inset: 0;
-  border-radius: 18px 18px 6px 6px;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-.lid-front {
-  background: var(--ink);
-  padding: 2.2%;
-}
-.lid-back {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, #dfe4e2, #aeb7b3);
-  transform: rotateY(180deg);
-  font-size: 2rem;
-  font-weight: 700;
+  user-select: none;
+  white-space: nowrap;
+  font-size: 25vw;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
   color: var(--ink);
+  transform: scaleY(1.5);
 }
-.lid-back b {
-  color: var(--accent);
+.ring-stage {
+  --card-w: clamp(96px, 16vw, 230px);
+  --card-h: calc(var(--card-w) * 1.32);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--card-h) * 2.4);
+  perspective: 1600px;
 }
-/* закрытую крышку видим сверху: без разворота надпись читается вверх ногами */
-.lid-back span {
-  display: inline-block;
-  transform: rotate(180deg);
+.ring-tilt {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  transform-style: preserve-3d;
+  transform: translateZ(calc(var(--card-w) * -1.4)) rotateZ(-7deg) rotateX(-18deg);
 }
-.screen {
+.ring,
+.ring-item {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.ring {
+  animation: ring-spin 32s linear infinite;
+}
+@keyframes ring-spin {
+  to {
+    transform: rotateY(-360deg);
+  }
+}
+.ring-item {
+  transform: rotateY(calc(var(--i) * 45deg)) translateZ(calc(var(--card-w) * 1.65));
+}
+/* Прозрачная стеклянная карточка: диагональный блик и светлые кромки сверху и снизу */
+.glass {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  border: 1px solid rgba(11, 15, 13, 0.18);
+  border-radius: calc(var(--card-w) * 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0 49.6%, rgba(236, 241, 239, 0.7) 50%);
+  box-shadow: inset 0 14px 22px -12px #fff, inset 0 -14px 22px -12px #fff, inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 24px 40px -28px rgba(11, 15, 13, 0.45);
+  text-align: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+/* изнанка дальних карточек: то же содержимое, не зеркальное и бледнее */
+.glass-back {
+  transform: rotateY(180deg);
+  opacity: 0.5;
+}
+.ring-caption {
+  padding: 0 0.5rem;
+  font-size: max(10px, calc(var(--card-w) * 0.055));
+  color: var(--muted);
+}
+
+/* Планшет */
+.stage {
+  perspective: 1800px;
+}
+.tablet {
+  aspect-ratio: 7 / 5;
+  border-radius: clamp(18px, 3.4vw, 38px);
+  background: var(--ink);
+  padding: clamp(7px, 1.5vw, 18px);
+  box-shadow: inset 0 0 0 2px #3a423f, 0 50px 80px -40px rgba(11, 15, 13, 0.55);
+}
+.tablet-screen {
+  position: relative;
   height: 100%;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: clamp(11px, 2vw, 22px);
   background: var(--page);
-  container-type: inline-size;
-}
-.screen-inner {
-  transform-origin: top left;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-}
-.base {
-  position: absolute;
-  left: -3%;
-  right: -3%;
-  top: 100%;
-  height: 100%;
-  transform-origin: 50% 0;
-  transform: rotateX(90deg);
-  border-radius: 0 0 22px 22px;
-  background: linear-gradient(#c3cbc7, #d9dedc);
-}
-.keys {
-  position: absolute;
-  inset: 8% 10% 38% 10%;
-  border-radius: 8px;
-  background: repeating-linear-gradient(90deg, #2b322f 0 6.2%, transparent 6.2% 7.1%),
-    repeating-linear-gradient(#c3cbc7 0 18%, transparent 18% 22%);
-  background-blend-mode: multiply;
-  opacity: 0.85;
-}
-.trackpad {
-  position: absolute;
-  left: 35%;
-  right: 35%;
-  bottom: 8%;
-  height: 24%;
-  border-radius: 8px;
-  background: #cfd5d2;
-  box-shadow: inset 0 0 0 1px #aab3af;
-}
-.lip {
-  position: absolute;
-  left: -3%;
-  right: -3%;
-  top: 100%;
-  height: 14px;
-  border-radius: 0 0 16px 16px;
-  background: linear-gradient(#c9cfcc, #8f9894);
 }

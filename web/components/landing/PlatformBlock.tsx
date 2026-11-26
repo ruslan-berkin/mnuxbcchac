@@ -19,7 +19,7 @@ export default function PlatformBlock({ data, run, result }: Props) {
         {/* Весь блок — ссылка на платформу. */}
         <Link href={href} aria-label="Открыть платформу" className="absolute inset-0 z-10 rounded-[2.5rem]" />
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.35fr_0.7fr]">
-          <div className="space-y-5 lg:pl-24" data-rise>
+          <div className="space-y-5" data-rise>
             <h2 className="text-4xl font-semibold leading-[1.05] md:text-5xl">
               Проверка ТЗ — <span className="text-[#7fd49b]">за минуты</span>
             </h2>
@@ -42,10 +42,6 @@ export default function PlatformBlock({ data, run, result }: Props) {
             {data && <p className="col-span-3 text-xs opacity-50 lg:col-span-1">Из настоящего отчёта по документу организаторов.</p>}
           </dl>
         </div>
-        {/* Девушка указывает вправо, на превью: стоит у левого края. На узких экранах — сверху, меньше. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/girl.png" alt="" width={325} height={365} data-girl
-          className="pointer-events-none absolute -top-20 left-2 z-20 w-28 md:-left-4 md:bottom-0 md:top-auto md:w-44 lg:w-52" />
       </div>
     </section>
   )
