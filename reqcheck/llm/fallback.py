@@ -73,3 +73,20 @@ class FallbackLLM(LLMClient):
                     self.used.append(ident)
             return text
         raise LLMUnavailableError("Все провайдеры недоступны: " + "; ".join(errors))
+
+    def stream_text(self, system: str, prompt: str, max_output_tokens: int | None = None):
+        errors: list[str] = []
+        for c in self.clients:
+            started = False
+            try:
+                for piece in c.stream_text(system, prompt, max_output_tokens):
+                    started = True
+                    yield piece
+                with self._lock:
+                    self._current = c
+                return
+            except LLMUnavailableError as exc:
+                if started:  # часть ответа уже у пользователя: переключаться нельзя
+                    raise
+                errors.append(f"{c.provider}/{c.model}: {redact(exc)}")
+        raise LLMUnavailableError("Все провайдеры недоступны: " + "; ".join(errors))

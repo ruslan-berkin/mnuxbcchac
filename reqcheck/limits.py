@@ -106,6 +106,10 @@ class BudgetedLLM(LLMClient):
     def note_cache_hit(self, provider: str, model: str) -> None:
         self.inner.note_cache_hit(provider, model)
 
+    def stream_text(self, system: str, prompt: str, max_output_tokens: int | None = None):
+        self.budget.charge(len(system) + len(prompt))
+        yield from self.inner.stream_text(system, prompt, max_output_tokens)
+
     def complete(self, system: str, prompt: str, schema: dict) -> str:
         self.budget.charge(len(system) + len(prompt))
         return self.inner.complete(system, prompt, schema)

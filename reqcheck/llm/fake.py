@@ -31,6 +31,15 @@ class FakeLLM(LLMClient):
             return json.dumps(_minimal(schema), ensure_ascii=False)
         return self._queue.pop(0)
 
+    def stream_text(self, system: str, prompt: str, max_output_tokens: int | None = None):
+        self.calls.append((system, prompt))
+        if self._handler is not None:
+            text = self._handler(system, prompt)
+        else:
+            text = self._queue.pop(0) if self._queue else ""
+        for i in range(0, len(text), 5):  # мелкими кусками: проверяет склейку на границах
+            yield text[i : i + 5]
+
 
 def _minimal(node: dict):
     """Минимальный ответ, валидный по схеме (для CLI-режима fake и тестов)."""

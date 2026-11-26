@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
+from reqcheck.errors import LLMUnavailableError
 from reqcheck.llm.base import (EmptyResponseError, LLMClient, LLMTruncatedError, call_with_retries,
                                inline_schema)
 
@@ -85,3 +87,25 @@ class GeminiClient(LLMClient):
 
         kwargs = {"sleep": self._sleep} if self._sleep else {}
         return call_with_retries(call, classify, attempts=self._attempts, **kwargs)
+
+    def stream_text(self, system: str, prompt: str, max_output_tokens: int | None = None) -> Iterator[str]:
+        from google.genai import types
+
+        extra = {}
+        if max_output_tokens:
+            extra["max_output_tokens"] = max_output_tokens
+        if self._thinking_level:
+            extra["thinking_config"] = types.ThinkingConfig(thinking_level=self._thinking_level)
+        config = types.GenerateContentConfig(system_instruction=system, temperature=0, **extra)
+
+        def start():
+            return self._client.models.generate_content_stream(model=self.model, contents=prompt, config=config)
+
+        kwargs = {"sleep": self._sleep} if self._sleep else {}
+        stream = call_with_retries(start, classify, attempts=self._attempts, **kwargs)
+        try:
+            for chunk in stream:
+                if chunk.text:
+                    yield chunk.text
+        except Exception as exc:
+            raise LLMUnavailableError(f"Поток ответа прерван: {type(exc).__name__}") from exc

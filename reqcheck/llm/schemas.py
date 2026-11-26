@@ -81,3 +81,13 @@ class DupGroup(_Strict):
 
 class ConsolidateOut(_Strict):
     groups: Annotated[list[DupGroup], Field(max_length=100)]
+
+
+class RecheckLLMItem(_Strict):
+    finding_id: Annotated[str, Field(max_length=20)]
+    status: Literal["resolved", "partial", "open"]
+    reason: Text
+
+
+class RecheckOut(_Strict):
+    items: Annotated[list[RecheckLLMItem], Field(max_length=60)]

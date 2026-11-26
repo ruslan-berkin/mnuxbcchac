@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 
+from reqcheck.errors import LLMUnavailableError
 from reqcheck.llm.base import (EmptyResponseError, LLMClient, LLMTruncatedError, call_with_retries,
                                inline_schema)
 
@@ -90,3 +92,44 @@ class OpenAICompatClient(LLMClient):
 
         kwargs = {"sleep": self._sleep} if self._sleep else {}
         return call_with_retries(call, classify, attempts=self._attempts, **kwargs)
+
+    def stream_text(self, system: str, prompt: str, max_output_tokens: int | None = None) -> Iterator[str]:
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
+        token_param: str | None = "max_completion_tokens" if max_output_tokens else None
+        stream = True
+
+        def open_response():
+            nonlocal token_param, stream
+            for _ in range(4):
+                params: dict = {"model": self.model, "messages": messages, "stream": stream}
+                if self._send_temperature:
+                    params["temperature"] = 0
+                if token_param:
+                    params[token_param] = max_output_tokens
+                try:
+                    return self._client.chat.completions.create(**params)
+                except Exception as exc:
+                    msg = str(exc)
+                    if getattr(exc, "status_code", None) != 400:
+                        raise
+                    if "temperature" in msg and self._send_temperature:
+                        self._send_temperature = False
+                    elif token_param and token_param in msg:
+                        token_param = "max_tokens" if token_param == "max_completion_tokens" else None
+                    elif "stream" in msg and stream:
+                        stream = False  # сервер не умеет стримить: возьмём ответ целиком
+                    else:
+                        raise
+            raise EmptyResponseError("не удалось подобрать параметры запроса")
+
+        kwargs = {"sleep": self._sleep} if self._sleep else {}
+        response = call_with_retries(open_response, classify, attempts=self._attempts, **kwargs)
+        if not stream:
+            yield response.choices[0].message.content or ""
+            return
+        try:
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception as exc:
+            raise LLMUnavailableError(f"Поток ответа прерван: {type(exc).__name__}") from exc

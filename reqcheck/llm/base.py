@@ -8,7 +8,7 @@ import logging
 import re
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from importlib import resources
 from typing import TypeVar
 
@@ -56,6 +56,10 @@ class LLMClient(ABC):
 
     def note_cache_hit(self, provider: str, model: str) -> None:
         """Ответ взят из кэша под этой идентичностью: клиенты с цепочкой запоминают это для паспорта."""
+
+    def stream_text(self, system: str, prompt: str, max_output_tokens: int | None = None) -> Iterator[str]:
+        """Свободный текст по частям (для чата). Провайдер без стриминга может отдать целиком."""
+        raise LLMUnavailableError(f"Провайдер {self.provider} не поддерживает чат.")
 
     @abstractmethod
     def complete(self, system: str, prompt: str, schema: dict) -> str:
