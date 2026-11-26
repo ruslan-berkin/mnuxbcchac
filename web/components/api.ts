@@ -1,5 +1,7 @@
-// Типы ответа API (подмножество reports/report.json) и запрос примера.
+// Типы ответа API и запрос данных. Всё производное (подсветка, сводка, приоритеты) считает сервер.
 export type Severity = "critical" | "major" | "minor"
+
+export type Anchor = { section: string; page: number | null; line_start: number; line_end: number }
 
 export type Finding = {
   id: string
@@ -8,7 +10,7 @@ export type Finding = {
   criterion: string
   severity: Severity
   quotes: string[]
-  anchors: { section: string; page: number | null; line_start: number; line_end: number }[]
+  anchors: Anchor[]
   problem: string
   fix: string
   question: string | null
@@ -21,26 +23,45 @@ export type Requirement = {
   kind: string
   quote: string
   summary: string
-  anchor: Finding["anchors"][number]
+  anchor: Anchor
 }
 
+export type VerdictCode = "blocked" | "caveats" | "incomplete" | "ok"
+
 export type Report = {
-  passport: Record<string, string>
+  passport: {
+    document_title: string
+    run_datetime: string
+    model_provider: string
+    model_id: string
+    agent_version: string
+    llm_mode: string
+  }
   requirements: Requirement[]
   findings: Finding[]
-  verdict: { code: "blocked" | "caveats" | "incomplete" | "ok"; text: string }
+  verdict: { code: VerdictCode; text: string }
   verifier_rejected: number
   dropped_count: number
   merged_count: number
+  incomplete_reasons: string[]
 }
 
-export type Example = {
+export type Highlight = { finding_id: string; line: number; start: number; end: number }
+
+export type ReportView = {
   report: Report
   document: { name: string; title: string; sha256: string; lines: string[] }
+  view: {
+    highlights: Highlight[]
+    priorities: string[]
+    by_severity: Record<Severity, number>
+    by_criterion: Record<string, number>
+    criteria: Record<string, { title: string; reference: string }>
+  }
 }
 
-export async function fetchExample(signal?: AbortSignal): Promise<Example> {
+export async function fetchExample(signal?: AbortSignal): Promise<ReportView> {
   const res = await fetch("/api/example", { signal })
   if (!res.ok) throw new Error(`Сервер ответил ${res.status}`)
-  return (await res.json()) as Example
+  return (await res.json()) as ReportView
 }
