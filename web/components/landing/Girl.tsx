@@ -11,7 +11,7 @@ const DEEP = "#11372c"
 
 const skin = { fill: SKIN, stroke: SKIN_SHADE, strokeWidth: 1.8, strokeLinejoin: "round" as const }
 // голова нарисована в своих координатах с центром (320, 100) и переносится на место
-const HEAD = "translate(165 165) scale(1.15) translate(-320 -100)"
+const HEAD = "translate(166 175) scale(0.95) translate(-320 -100)"
 
 function Head() {
   return (
@@ -57,7 +57,7 @@ function Head() {
 // Кисть смотрит вправо: указательный вытянут, три пальца согнуты, большой прижат поверх них.
 function PointingHand() {
   return (
-    <g {...skin}>
+    <g {...skin} transform="translate(556 359) scale(0.8) translate(-556 -359)">
       <path d="M459 355C473 346 492 343 505 349C515 356 517 366 515 376L510 394C500 402 480 400 468 386Z" />
       <rect x="480" y="391" width="29" height="12" rx="6" transform="rotate(9 494 397)" />
       <rect x="486" y="380" width="33" height="13" rx="6.5" transform="rotate(5 502 386)" />
@@ -85,44 +85,48 @@ export default function Girl() {
       <g mask="url(#girl-mask)">
         {/* на широком экране кнопка уже, поэтому девушка стоит чуть правее: палец доходит до её края */}
         <g className="girl-place">
-        {/* брюки */}
-        <path fill={DEEP} d="M101 496H233C250 560 248 640 240 720H182L168 580L154 720H96C86 640 84 560 101 496Z" />
+        {/* брюки с высокой талией */}
+        <g transform="translate(50 0)">
+        <path fill={DEEP} d="M138 386H194C197 420 212 440 212 474C212 540 204 640 198 720H176L167 520L156 720H134C128 640 120 540 120 474C120 440 135 420 138 386Z" />
+        </g>
         <g className="girl-breathe">
+          <g transform="translate(50 0)">
           <g transform={HEAD}>
             <g className="girl-hair">
-              <path fill={HAIR} d="M252 112C236 36 404 32 390 112C398 166 436 208 420 272C408 310 372 296 366 262L272 262C266 298 228 314 218 274C204 224 250 174 252 112Z" />
+              <path fill={HAIR} d="M252 112C236 36 404 32 390 112C398 166 440 214 424 290C412 330 374 316 366 270L272 270C264 320 222 334 214 290C200 230 250 174 252 112Z" />
             </g>
           </g>
-          {/* опущенная рука: ладонь на поясе */}
-          <path {...skin} d="M106 300C84 320 62 372 50 404C46 418 52 428 62 436L106 484L124 464L86 414C98 386 112 356 126 336Z" />
-          <g {...skin}>
-            <path d="M104 462C116 456 128 462 132 474L134 492C128 500 116 498 110 490L100 476Z" />
-            <rect x="117" y="478" width="11" height="30" rx="5.5" transform="rotate(-14 122 492)" />
-            <rect x="128" y="474" width="11" height="28" rx="5.5" transform="rotate(-22 133 488)" />
-          </g>
-          <path fill={SHIRT} d="M118 262Q166 250 214 262C244 272 258 300 252 340L232 372C226 420 228 460 236 500H98C106 460 108 420 100 372L76 336C72 298 88 272 118 262Z" />
-          <path fill={SHIRT_SHADE} d="M100 372C108 420 106 460 98 500H122C128 452 122 404 100 372Z" />
-          <path fill={SKIN} d="M147 228V264Q166 286 185 264V228Z" />
-          <path fill={SKIN_SHADE} d="M147 238Q166 262 185 238V250Q166 272 147 250Z" />
-          <path fill="none" stroke={SHIRT_SHADE} strokeWidth="6" strokeLinecap="round" d="M142 262Q166 298 190 262" />
-          <g transform="translate(127 336)" fill="none" stroke="#fff" strokeLinejoin="round">
+          {/* опущенная рука вдоль тела */}
+          <path {...skin} d="M130 282C114 292 106 330 100 392C97 430 95 462 97 494L109 495C112 464 117 430 118 398C122 362 128 332 140 308Z" />
+          <path {...skin} d="M97 492C92 506 91 522 95 532C98 540 103 537 103 528L105 541C107 548 112 546 112 537V522C116 529 121 527 118 516L109 494Z" />
+          <path fill={SKIN} d="M156 232V262Q166 276 176 262V232Z" />
+          <path fill={SKIN_SHADE} d="M156 240Q166 258 176 240V248Q166 266 156 248Z" />
+          {/* приталенная футболка, заправлена в брюки */}
+          <path fill={SHIRT} d="M153 258C138 262 120 268 114 284C112 300 124 316 126 332C129 356 138 372 138 396H194C194 372 203 356 206 332C208 316 220 300 218 284C212 268 194 262 179 258Q166 276 153 258Z" />
+          <path fill={SHIRT_SHADE} d="M126 332C129 356 138 372 138 396H147C147 372 137 352 126 332ZM206 332C203 356 194 372 194 396H185C185 372 195 352 206 332Z" />
+          <path fill="none" stroke={SHIRT_SHADE} strokeWidth="4" strokeLinecap="round" d="M153 258Q166 276 179 258" />
+          {/* левый рукав */}
+          <path fill={SHIRT} d="M138 264C117 270 106 292 100 324L123 330C126 312 130 300 140 290Z" />
+          <path fill="none" stroke={SHIRT_SHADE} strokeWidth="4" strokeLinecap="round" d="M100 324L123 330" />
+          <g transform="translate(144 316) scale(0.7)" fill="none" stroke="#fff" strokeLinejoin="round">
             <path strokeWidth="5" d="M0 -14L17 15H-17Z" />
             <path strokeWidth="3" d="M1 -2L7 8H-5Z" />
           </g>
-          <text x="148" y="350" className="girl-text" fill="#fff" fontSize="23">BCC</text>
-          <path fill="none" stroke={DEEP} strokeWidth="10" d="M99 496H235" />
+          <text x="159" y="324" className="girl-text" fill="#fff" fontSize="16">BCC</text>
           <g transform={HEAD}>
             <Head />
+          </g>
           </g>
           {/* указывающая рука */}
           <circle className="girl-tap" cx="570" cy="360" r="13" />
           <g className="girl-point">
-            <path {...skin} d="M226 302C268 306 300 354 344 390C380 382 424 364 461 354L470 386C436 400 394 428 356 440C338 446 322 438 308 424C282 400 252 374 218 362Z" />
+            <path {...skin} d="M252 276C276 288 312 336 346 372C390 368 440 361 480 357L481 376C444 381 400 392 358 398C342 400 330 395 320 386C292 358 266 324 246 306Z" />
             <PointingHand />
-            <path fill={SHIRT} d="M214 276C262 284 298 330 322 366L284 408C264 388 242 372 208 362Z" />
-            <path fill="none" stroke={SHIRT_SHADE} strokeWidth="7" strokeLinecap="round" d="M322 366L284 408" />
+            <path fill={SHIRT} d="M232 261C260 266 288 290 310 315L287 339C274 324 260 312 242 306Z" />
+            <path fill="none" stroke={SHIRT_SHADE} strokeWidth="4" strokeLinecap="round" d="M310 315L287 339" />
           </g>
         </g>
+        <path fill="none" stroke="#0a251d" strokeWidth="8" d="M138 392H194" transform="translate(50 0)" />
         </g>
       </g>
     </svg>

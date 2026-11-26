@@ -307,7 +307,7 @@ html {
   animation: girl-blink 4.2s infinite;
 }
 .girl-point {
-  transform-origin: 230px 335px;
+  transform-origin: 270px 335px;
   animation: girl-point 1.3s ease-in-out infinite;
 }
 .girl-tap {
