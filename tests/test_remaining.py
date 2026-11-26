@@ -390,3 +390,16 @@ def test_agent_version_is_computed_before_report_files_are_touched(tmp_path, mon
     rep = run(doc, out, SETTINGS, lint_only=True)
     assert seen == {"report_existed": True, "log_existed": True}  # ничего ещё не удалено и не пересоздано
     assert rep.passport.agent_version == "v9.9"
+
+
+def test_agent_version_falls_back_to_render_commit(monkeypatch):
+    import reqcheck.pipeline as pl
+
+    def no_git(*a, **k):
+        raise OSError("git недоступен")
+
+    monkeypatch.setattr(pl.subprocess, "run", no_git)
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "6a63ccbDEADBEEF<script>")
+    assert pl.agent_version() == "0.1.0+6a63ccb"
+    monkeypatch.delenv("RENDER_GIT_COMMIT")
+    assert pl.agent_version() == "0.1.0+nogit"

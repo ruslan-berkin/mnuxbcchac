@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 import tempfile
 from collections.abc import Callable, Sequence
@@ -53,7 +54,9 @@ def agent_version() -> str:
             return out
     except (OSError, subprocess.SubprocessError):
         pass
-    return f"{__version__}+nogit"
+    # В контейнере git нет: Render передаёт коммит сборки в RENDER_GIT_COMMIT.
+    commit = re.sub(r"[^0-9a-f]", "", (os.getenv("RENDER_GIT_COMMIT") or "").lower())[:7]
+    return f"{__version__}+{commit}" if commit else f"{__version__}+nogit"
 
 
 def _now() -> str:
