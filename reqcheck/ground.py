@@ -145,6 +145,28 @@ class GroundIndex:
         l0, l1, raw = self._span(al.dest_start, al.dest_end)
         return GroundMatch("fuzzy", float(al.score), l0, l1, raw)
 
+    def locate(self, quote: str, near_line: int | None = None) -> list[tuple[int, int, int]]:
+        """Где именно лежит цитата: (номер строки, начало, конец) в символах строки; для подсветки в интерфейсе.
+
+        Берётся вхождение, ближайшее к near_line. Пустой список, если точного вхождения нет.
+        """
+        nq = normalize(clean_quote(quote))
+        if len(nq) < MIN_QUOTE_LEN:
+            return []
+        occ = self._occurrences(nq)
+        if not occ:
+            return []
+        i = occ[0] if near_line is None else min(occ, key=lambda k: abs(self.pos[k][0] + 1 - near_line))
+        spans: dict[int, list[int]] = {}
+        for k in range(i, i + len(nq)):
+            if self.text[k] == " ":
+                continue
+            line, col = self.pos[k]
+            lo_hi = spans.setdefault(line, [col, col + 1])
+            lo_hi[0] = min(lo_hi[0], col)
+            lo_hi[1] = max(lo_hi[1], col + 1)
+        return [(line + 1, lo, hi) for line, (lo, hi) in sorted(spans.items())]
+
     def anchor_for(self, line_start: int, line_end: int) -> Anchor:
         for b in self.doc.blocks:
             a = b.anchor

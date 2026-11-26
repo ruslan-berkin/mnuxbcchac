@@ -5,18 +5,20 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from reqcheck import __version__
 from reqcheck.ingest import load_document
 from reqcheck.limits import Limits
+from reqcheck.models import Report
+from server.view import report_view
 
 log = logging.getLogger("sau.server")
 
@@ -45,15 +47,20 @@ def live_enabled() -> bool:
 @lru_cache(maxsize=1)
 def load_example() -> dict:
     """Готовый отчёт и строки документа. Без LLM: читается один раз и кэшируется."""
-    report = json.loads(EXAMPLE_REPORT.read_text(encoding="utf-8"))
+    report = Report.model_validate_json(EXAMPLE_REPORT.read_text(encoding="utf-8"))
     # Документ наш, доверенный: песочница не нужна. Нумерация строк та же, что при прогоне.
     doc = load_document(EXAMPLE_DOCUMENT, limits=Limits(sandbox=False), display_name=EXAMPLE_DOCUMENT.name)
-    if doc.sha256 != report["passport"]["document_sha256"]:
+    if doc.sha256 != report.passport.document_sha256:
         log.warning("Пример: SHA-256 документа не совпадает с паспортом отчёта, подсветка может не совпасть")
-    return {
-        "report": report,
-        "document": {"name": doc.path, "title": doc.title, "sha256": doc.sha256, "lines": doc.lines},
-    }
+    return report_view(doc, report)
+
+
+def _example_file(kind: str) -> FileResponse:
+    path = EXAMPLE_REPORT if kind == "json" else EXAMPLE_REPORT.with_suffix(".md")
+    if not path.is_file():
+        raise HTTPException(404, "Файл отчёта не найден.")
+    media = "application/json" if kind == "json" else "text/markdown; charset=utf-8"
+    return FileResponse(path, media_type=media, filename=f"sau-example-report.{kind}")
 
 
 def create_app(web_dir: Path | None = None) -> FastAPI:
@@ -77,6 +84,14 @@ def create_app(web_dir: Path | None = None) -> FastAPI:
         except Exception as exc:  # без путей и трейсбэков в ответе
             log.exception("Не удалось загрузить пример")
             raise HTTPException(503, "Пример временно недоступен.") from exc
+
+    @app.get("/api/runs/example/report.md")
+    def example_md() -> FileResponse:
+        return _example_file("md")
+
+    @app.get("/api/runs/example/report.json")
+    def example_json() -> FileResponse:
+        return _example_file("json")
 
     @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
     def unknown_api(rest: str) -> None:

@@ -84,3 +84,12 @@ def test_listing_prefix_copied_from_prompt_is_ignored(tmp_path):
     kept, dropped = ground_findings(doc, [
         finding("R-02 [без номера] (ui): При ошибке ввода сообщение появляется под полем.")])
     assert dropped == 0 and kept[0].quotes == ["При ошибке ввода сообщение появляется под полем."]
+
+
+def test_locate_returns_exact_spans_across_lines(tmp_path):
+    doc = mkdoc(tmp_path, "Объём берётся\nиз **карты** клиента.\n")
+    spans = GroundIndex(doc).locate("объем берется из карты клиента")
+    assert [s[0] for s in spans] == [1, 2]
+    pieces = [doc.lines[n - 1][a:b] for n, a, b in spans]
+    assert pieces[0] == "Объём берётся" and pieces[1].startswith("из") and pieces[1].endswith("клиента")
+    assert GroundIndex(doc).locate("нет такой строки вовсе") == []

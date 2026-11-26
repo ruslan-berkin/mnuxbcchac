@@ -47,7 +47,9 @@ def test_example_serves_committed_report_and_document_without_llm(client, repo_r
     assert r.status_code == 200
     data = r.json()
     committed = json.loads((repo_root / "reports" / "report.json").read_text(encoding="utf-8"))
-    assert data["report"] == committed
+    assert data["report"]["passport"] == committed["passport"]
+    assert [f["id"] for f in data["report"]["findings"]] == [f["id"] for f in committed["findings"]]
+    assert data["report"]["verdict"] == committed["verdict"]
     assert data["document"]["lines"] and data["document"]["sha256"] == committed["passport"]["document_sha256"]
 
 
@@ -93,3 +95,43 @@ def test_example_failure_is_a_clean_503(web_dir, monkeypatch, tmp_path):
     monkeypatch.setattr("server.main.EXAMPLE_REPORT", tmp_path / "missing.json")
     r = TestClient(create_app(web_dir)).get("/api/example")
     assert r.status_code == 503 and str(tmp_path) not in r.text
+
+
+def test_view_highlights_point_at_the_quoted_text(client):
+    data = client.get("/api/example").json()
+    lines = data["document"]["lines"]
+    findings = {f["id"]: f for f in data["report"]["findings"]}
+    by_finding: dict[str, list[str]] = {}
+    for h in data["view"]["highlights"]:
+        line = lines[h["line"] - 1]
+        units = line.encode("utf-16-le")
+        piece = units[h["start"] * 2 : h["end"] * 2].decode("utf-16-le")
+        assert piece, h
+        by_finding.setdefault(h["finding_id"], []).append(piece)
+    assert set(by_finding) == set(findings)  # каждое замечание где-то подсвечено
+    for fid, f in findings.items():
+        shown = normalize(" ".join(by_finding[fid]))
+        assert any(normalize(q)[:25] in shown for q in f["quotes"]), fid
+
+
+def test_view_summary_priorities_and_criteria(client):
+    data = client.get("/api/example").json()
+    view, findings = data["view"], data["report"]["findings"]
+    assert sum(view["by_severity"].values()) == len(findings)
+    assert view["priorities"] and view["priorities"][0] in {f["id"] for f in findings if f["severity"] == "critical"}
+    assert {f["criterion"] for f in findings} <= set(view["criteria"])
+    assert view["criteria"]["VER"]["title"] == "Проверяемое"
+
+
+def test_download_example_report(client, repo_root):
+    md = client.get("/api/runs/example/report.md")
+    js = client.get("/api/runs/example/report.json")
+    assert md.status_code == 200 and md.text == (repo_root / "reports" / "report.md").read_text(encoding="utf-8")
+    assert "attachment" in md.headers["content-disposition"] and "sau-example-report.md" in md.headers["content-disposition"]
+    assert js.json()["verdict"]["code"] == "blocked" and "attachment" in js.headers["content-disposition"]
+
+
+def test_utf16_offsets_for_astral_characters():
+    from server.view import _utf16
+
+    assert _utf16("a😀b", 2) == 3 and _utf16("тенге ₸", 7) == 7
