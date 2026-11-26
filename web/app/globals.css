@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* Дизайн-токены (SITE.md §2) */
+:root {
+  --page: #ffffff;
+  --ink: #0b0f0d;
+  --muted: #5f6b66;
+  --rule: #e6eae8;
+  --accent: #1f7a3e;
+  --accent-deep: #11372c;
+  --accent-soft: #e7f3ea;
+  --sev-critical: #c2410c;
+  --sev-major: #b7791f;
+  --sev-minor: #64748b;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-critical: var(--sev-critical);
+  --color-major: var(--sev-major);
+  --color-minor: var(--sev-minor);
+  --font-sans: "Inter Tight Variable", "Inter Tight", "Inter", system-ui, sans-serif;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
