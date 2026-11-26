@@ -9,7 +9,7 @@ const BCC: Card = {
   content: (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logos/bcc.png" alt="" className="w-[58%]" />
+      <img src="/logos/bcc.png" alt="" className="h-[52%]" />
       <span className="ring-caption">Bank CenterCredit</span>
     </>
   ),
@@ -17,13 +17,13 @@ const BCC: Card = {
 const MNU: Card = {
   tone: "card-mnu",
   // eslint-disable-next-line @next/next/no-img-element
-  content: <img src="/logos/mnu.png" alt="" className="w-[84%]" />,
+  content: <img src="/logos/mnu.png" alt="" className="w-[78%]" />,
 }
 const SAU: Card = {
   tone: "card-sau",
   content: (
     <>
-      <span className="font-display text-[length:calc(var(--card-w)*0.2)] font-bold tracking-tight">
+      <span className="font-display text-[length:calc(var(--card-w)*0.17)] font-bold tracking-tight">
         sau<b className="text-accent">.</b>ai
       </span>
       <span className="ring-caption">наша команда</span>

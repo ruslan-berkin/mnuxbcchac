@@ -1,5 +1,6 @@
-// Живой фон лендинга: миллиметровка, мягкие пятна и всплывающие коды критериев проверки. Только CSS.
+// Живой фон лендинга: сетка с точками, мягкие пятна и всплывающие коды критериев проверки.
 import type { CSSProperties } from "react"
+import DotGrid from "./DotGrid"
 
 const CODES = [
   ["VER", "проверяемость"], ["S-CON", "непротиворечивость"], ["UNA", "однозначность"], ["CMP", "полнота"],
@@ -10,7 +11,7 @@ const LEFT = [3, 88, 9, 82, 2, 91, 12, 79]
 export default function Backdrop() {
   return (
     <div aria-hidden className="backdrop">
-      <div className="backdrop-grid" />
+      <DotGrid />
       <div className="blob blob-a" />
       <div className="blob blob-b" />
       <div className="blob blob-c" />

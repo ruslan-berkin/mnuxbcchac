@@ -94,18 +94,11 @@ html {
   overflow: hidden;
   pointer-events: none;
 }
-.backdrop-grid {
+.dot-grid {
   position: absolute;
-  inset: -56px;
-  background-image: linear-gradient(rgba(17, 55, 44, 0.065) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(17, 55, 44, 0.065) 1px, transparent 1px);
-  background-size: 56px 56px;
-  animation: grid-slide 18s linear infinite;
-}
-@keyframes grid-slide {
-  to {
-    transform: translate(56px, 56px);
-  }
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .blob {
   position: absolute;
@@ -178,19 +171,19 @@ html {
   font-weight: 900;
 }
 .ring-stage {
-  --card-w: clamp(104px, 15vw, 220px);
-  --card-h: calc(var(--card-w) * 1.32);
-  --ring-r: calc(var(--card-w) * 2.4);
+  --card-w: clamp(128px, 19vw, 280px);
+  --card-h: calc(var(--card-w) * 0.66);
+  --ring-r: calc(var(--card-w) * 1.75);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(var(--card-w) * 3.5);
+  height: calc(var(--card-w) * 2.5);
   perspective: 2400px;
 }
 @media (max-width: 639px) {
   .ring-stage {
-    --ring-r: calc(var(--card-w) * 1.55);
+    --ring-r: calc(var(--card-w) * 1.4);
   }
 }
 .ring-tilt {
@@ -225,10 +218,10 @@ html {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.8rem;
+  gap: 0.5rem;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.55);
-  border-radius: calc(var(--card-w) * 0.1);
+  border-radius: calc(var(--card-w) * 0.07);
   box-shadow: inset 0 16px 24px -16px rgba(255, 255, 255, 0.9), inset 0 -16px 24px -16px rgba(255, 255, 255, 0.75),
     0 28px 44px -28px rgba(11, 15, 13, 0.55);
   text-align: center;
@@ -253,29 +246,28 @@ html {
 }
 .ring-caption {
   padding: 0 0.5rem;
-  font-size: max(10px, calc(var(--card-w) * 0.062));
+  font-size: max(10px, calc(var(--card-w) * 0.055));
   opacity: 0.8;
 }
 
-/* Планшет: на широком экране девушка стоит на верхней кромке, стрелка ведёт от ладони к кнопке */
+/* Планшет и девушка. Над планшетом оставлено 28% ширины: в этих же координатах нарисованы оба слоя девушки */
 .tablet-wrap {
   position: relative;
   margin-inline: auto;
-  width: min(100%, 880px, calc((100svh - 96px) * 1.03));
+  width: min(100%, 880px, calc((100svh - 96px) * 1.02));
+}
+/* проценты padding у ::before считаются от ширины самой обёртки, а не секции */
+.tablet-wrap::before {
+  content: "";
+  display: block;
+  padding-top: 28%;
 }
 .stage {
   perspective: 1800px;
 }
-.girl {
+.tablet-slot {
   position: relative;
-  z-index: 20;
-  display: block;
-  width: 10rem;
-  margin: 0 auto -0.75rem;
-  pointer-events: none;
-}
-.arrow {
-  display: none;
+  z-index: 10;
 }
 .tablet {
   aspect-ratio: 4 / 5;
@@ -285,45 +277,117 @@ html {
   box-shadow: inset 0 0 0 2px #3a423f, 0 60px 90px -45px rgba(11, 15, 13, 0.6);
 }
 @media (min-width: 768px) {
-  .tablet-wrap {
-    aspect-ratio: 1000 / 965;
-  }
-  .girl {
-    position: absolute;
-    top: 0;
-    left: 21%;
-    width: 25%;
-    margin: 0;
-  }
-  .tablet-slot {
-    position: absolute;
-    inset: 26% 0 0;
-  }
   .tablet {
     aspect-ratio: 7 / 5;
   }
-  .arrow {
-    position: absolute;
-    inset: 0;
-    z-index: 15;
-    display: block;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    fill: none;
-    stroke: #35c27e;
-    stroke-width: 7;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .arrow path {
-    stroke-dasharray: 1;
-    animation: nudge 1.6s ease-in-out infinite;
+}
+.girl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
+.girl-front {
+  z-index: 20;
+}
+.girl-text {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+.girl-breathe {
+  animation: girl-breathe 3.4s ease-in-out infinite;
+}
+.girl-head {
+  transform-origin: 320px 180px;
+  animation: girl-tilt 6s ease-in-out infinite;
+}
+.girl-hair {
+  transform-origin: 320px 80px;
+  animation: girl-tilt 6s ease-in-out -0.5s infinite;
+}
+.girl-eyes {
+  transform-origin: 320px 118px;
+  animation: girl-blink 4.2s infinite;
+}
+.girl-point {
+  transform-origin: 390px 232px;
+  animation: girl-point 1.3s ease-in-out infinite;
+}
+.girl-tap {
+  fill: none;
+  stroke: #4be094;
+  stroke-width: 5;
+  transform-origin: 494px 562px;
+  animation: girl-tap 1.3s ease-out infinite;
+}
+@keyframes girl-breathe {
+  50% {
+    transform: translateY(-5px);
   }
 }
-@keyframes nudge {
+@keyframes girl-tilt {
+  0%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
   50% {
-    transform: translateY(8px);
+    transform: rotate(4deg);
+  }
+}
+@keyframes girl-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes girl-point {
+  50% {
+    transform: translateY(12px) rotate(-1.5deg);
+  }
+}
+@keyframes girl-tap {
+  0%,
+  35% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+/* Блеск, пробегающий по кнопке загрузки */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+  animation: shine 2.6s ease-in-out infinite;
+}
+@keyframes shine {
+  55%,
+  100% {
+    left: 130%;
   }
 }
 .tablet-screen {
@@ -360,11 +424,11 @@ html {
   height: 100%;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.75rem;
   border: 2px dashed rgba(255, 255, 255, 0.28);
   border-radius: clamp(10px, 1.6vw, 18px);
-  padding: 1rem;
+  padding: 26% 1rem 1rem;
   text-align: center;
   transition: border-color 0.2s, background-color 0.2s;
 }

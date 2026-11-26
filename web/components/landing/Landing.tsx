@@ -107,21 +107,16 @@ export default function Landing() {
         { rotationX: 46, rotationY: -30, rotationZ: 9, y: 120, scale: 0.72 },
         { rotationX: 0, rotationY: 0, rotationZ: 0, y: 0, scale: 1, ease: "none",
           scrollTrigger: { trigger: "[data-tablet-section]", start: "top 90%", end: "top 8%", scrub: 0.6 } })
-      // Когда планшет почти развернулся, сверху выпрыгивает девушка и прорисовывается стрелка к загрузке.
+      // Когда планшет почти развернулся, из-за него выглядывает девушка и показывает на загрузку.
       let timer = 0
-      gsap.set("[data-girl]", { y: 90, autoAlpha: 0 })
-      gsap.set("[data-arrow]", { autoAlpha: 0 })
-      gsap.set("[data-stroke]", { strokeDashoffset: 1 })
+      gsap.set("[data-girl]", { y: 70, autoAlpha: 0 })
       ScrollTrigger.create({
         trigger: "[data-tablet-section]",
         start: "top 35%",
         once: true,
         onEnter: () => {
-          const tl = gsap.timeline()
-            .to("[data-girl]", { y: 0, autoAlpha: 1, duration: 0.8, ease: "back.out(1.8)" })
-            .set("[data-arrow]", { autoAlpha: 1 })
-            .to("[data-stroke]", { strokeDashoffset: 0, duration: 0.45, ease: "power2.out", stagger: 0.35 })
-          timer = window.setTimeout(() => tl.progress(1), 2400)
+          const tween = gsap.to("[data-girl]", { y: 0, autoAlpha: 1, duration: 0.9, ease: "back.out(1.8)" })
+          timer = window.setTimeout(() => tween.progress(1), 1600)
         },
       })
       return () => window.clearTimeout(timer)
