@@ -8,8 +8,10 @@ RUN npm run build
 
 # --- 2. Python: ядро reqcheck + FastAPI, раздающий web/out
 FROM python:3.12-slim AS runtime
+# Памяти на Render free 512 МБ: без анализа макета разбор PDF занимает ~85 МБ вместо ~355 МБ.
+# PARSE_MEMORY_MB ограничивает адресное пространство (не резидентную память): меньше ~700 МБ pymupdf не стартует.
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
-    REQCHECK_PARSE_MEMORY_MB=384
+    REQCHECK_PARSE_MEMORY_MB=1024 REQCHECK_PDF_LAYOUT=0
 WORKDIR /app
 COPY requirements.txt constraints.txt ./
 COPY server/requirements.txt server/requirements.txt
