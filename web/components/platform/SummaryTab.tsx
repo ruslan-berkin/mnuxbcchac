@@ -1,3 +1,4 @@
+// Отчёт аналитики: сверху ответ на главный вопрос «можно ли начинать», дальше — что делать.
 import type { Finding, ReportView, Severity } from "../api"
 import { SEVERITY, SEVERITY_ORDER, VERDICT } from "./meta"
 
@@ -6,79 +7,110 @@ type Props = {
   findings: Map<string, Finding>
   onSelect: (id: string) => void
   onFilter: (filter: { severity?: Severity; criterion?: string }) => void
+  onQuestions: () => void
 }
 
-export default function SummaryTab({ data, findings, onSelect, onFilter }: Props) {
+const MEANING: Record<Severity, string> = {
+  critical: "без исправления нельзя писать код и тесты",
+  major: "несколько трактовок или нет границы",
+  minor: "стиль и оформление",
+}
+const EDGE: Record<string, string> = {
+  blocked: "border-critical",
+  caveats: "border-major",
+  incomplete: "border-minor",
+  ok: "border-accent",
+}
+
+export default function SummaryTab({ data, findings, onSelect, onFilter, onQuestions }: Props) {
   const { report, view } = data
+  const most = Math.max(1, ...Object.values(view.by_criterion))
   return (
-    <div className="space-y-6">
-      <section className="space-y-2 rounded-2xl bg-ink p-4 text-page">
-        <p className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${VERDICT[report.verdict.code].tone}`}>
-          {VERDICT[report.verdict.code].short}
-        </p>
+    <div className="mx-auto max-w-3xl space-y-8 p-4 md:p-6">
+      <section aria-label="Вердикт" className={`space-y-3 rounded-2xl border border-rule border-l-8 bg-page p-5 ${EDGE[report.verdict.code]}`}>
+        <p className="text-sm text-muted">Отчёт аналитики</p>
+        <h2 className="text-2xl font-semibold leading-tight">{VERDICT[report.verdict.code].short}</h2>
         <p className="text-sm">{report.verdict.text}</p>
-        <p className="text-xs opacity-70">
-          {report.passport.model_id} · {report.passport.agent_version} · {report.passport.run_datetime.slice(0, 10)}
+        {report.incomplete_reasons.length > 0 && (
+          <ul className="list-disc pl-5 text-sm text-muted">
+            {report.incomplete_reasons.map((r) => <li key={r}>{r}</li>)}
+          </ul>
+        )}
+        <div className="flex flex-wrap gap-2 pt-1 text-sm">
+          <button type="button" onClick={() => onFilter({})} className="rounded-full bg-ink px-4 py-2 font-medium text-page">
+            Смотреть замечания ({report.findings.length})
+          </button>
+          <button type="button" onClick={onQuestions} className="rounded-full border border-ink px-4 py-2 font-medium hover:bg-accent-soft">
+            Ответить на вопросы агента
+          </button>
+        </div>
+        <p className="text-xs text-muted">
+          Проверено требований: {report.requirements.length} · {report.passport.model_id} · {report.passport.run_datetime.slice(0, 10)}
         </p>
       </section>
 
-      <section aria-label="Счётчики по серьёзности" className="grid grid-cols-3 gap-2">
+      <section aria-label="Замечания по серьёзности" className="grid gap-3 sm:grid-cols-3">
         {SEVERITY_ORDER.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => onFilter({ severity: s })}
-            className="rounded-2xl border border-rule p-3 text-left hover:border-ink"
-          >
-            <span className={`block text-3xl font-semibold ${SEVERITY[s].text}`}>{view.by_severity[s]}</span>
-            <span className="text-xs text-muted">{SEVERITY[s].label}</span>
+          <button key={s} type="button" onClick={() => onFilter({ severity: s })}
+            className="rounded-2xl border border-rule bg-page p-4 text-left hover:border-ink">
+            <span className={`block text-4xl font-semibold tabular-nums ${SEVERITY[s].text}`}>{view.by_severity[s]}</span>
+            <span className="block font-semibold">{SEVERITY[s].label}</span>
+            <span className="text-xs text-muted">{MEANING[s]}</span>
           </button>
         ))}
       </section>
-      <p className="text-xs text-muted">
-        Требований: {report.requirements.length} · объединено дублей: {report.merged_count} · снято перепроверкой:{" "}
-        {report.verifier_rejected} · отброшено цитат: {report.dropped_count}
-      </p>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Что исправить первым</h2>
-        <ol className="space-y-2">
-          {view.priorities.map((id, i) => {
-            const f = findings.get(id)
-            if (!f) return null
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  onClick={() => onSelect(id)}
-                  className="w-full rounded-xl border border-rule p-3 text-left text-sm hover:border-ink"
-                >
-                  <span className="font-semibold">{i + 1}. {id}</span>{" "}
-                  <span className={`text-xs font-semibold ${SEVERITY[f.severity].text}`}>{SEVERITY[f.severity].one}</span>
-                  <span className="mt-1 block text-muted">{f.fix}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-      </section>
+      {view.priorities.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Что исправить первым</h2>
+          <ol className="space-y-3">
+            {view.priorities.map((id, i) => {
+              const f = findings.get(id)
+              if (!f) return null
+              return (
+                <li key={id}>
+                  <button type="button" onClick={() => onSelect(id)}
+                    className="grid w-full grid-cols-[2rem_1fr] gap-3 rounded-2xl border border-rule bg-page p-4 text-left hover:border-ink">
+                    <span aria-hidden className="grid size-8 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent-deep">
+                      {i + 1}
+                    </span>
+                    <span className="space-y-2 text-sm">
+                      <span className="block font-medium">{f.problem}</span>
+                      <span className="block rounded-xl bg-accent-soft px-3 py-2"><b>Как исправить: </b>{f.fix}</span>
+                      <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className={`rounded-full px-2 py-0.5 font-medium ${SEVERITY[f.severity].badge}`}>{SEVERITY[f.severity].one}</span>
+                        <span>{view.criteria[f.criterion]?.title} · {id}</span>
+                        <span className="ml-auto font-semibold text-accent">Показать в документе</span>
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </section>
+      )}
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">По критериям</h2>
-        <ul className="divide-y divide-rule rounded-2xl border border-rule">
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Какие критерии нарушены</h2>
+        <ul className="rounded-2xl border border-rule bg-page p-2">
           {Object.entries(view.by_criterion).map(([code, n]) => (
             <li key={code}>
-              <button
-                type="button"
-                onClick={() => onFilter({ criterion: code })}
-                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent-soft"
-              >
-                <span><code className="font-semibold">{code}</code> {view.criteria[code]?.title}</span>
-                <span className="tabular-nums">{n}</span>
+              <button type="button" onClick={() => onFilter({ criterion: code })}
+                className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-accent-soft">
+                <span className="truncate">{view.criteria[code]?.title} <code className="text-xs text-muted">{code}</code></span>
+                <span aria-hidden className="h-2 rounded-full bg-rule">
+                  <span className="block h-full rounded-full bg-accent" style={{ width: `${(n / most) * 100}%` }} />
+                </span>
+                <span className="text-right font-semibold tabular-nums">{n}</span>
               </button>
             </li>
           ))}
         </ul>
+        <p className="text-xs text-muted">
+          Объединено дублей: {report.merged_count} · снято перепроверкой: {report.verifier_rejected} · отброшено цитат:{" "}
+          {report.dropped_count}
+        </p>
       </section>
     </div>
   )
