@@ -177,6 +177,18 @@ report = run(
 Запасных провайдеров в сервисе включайте только осознанно (по умолчанию `LLM_FALLBACK=none`), иначе документ при сбое
 основного уйдёт в другие сервисы. Ограничить модели можно списком `REQCHECK_MODEL_ALLOWLIST`.
 
+## Сайт (sau.ai)
+
+Веб-интерфейс поверх ядра: Next.js со статическим экспортом (`web/`) и FastAPI (`server/`), один контейнер.
+Задание и порядок работ: [SITE.md](SITE.md).
+
+```bash
+docker build -t sau-site .
+docker run -p 8000:8000 sau-site     # http://localhost:8000
+```
+
+Референс дизайна в `design/teal-treasury-landing.tsx`: шаблон «Teal Treasury Landing» (MIT, Kedhareswer Naidu).
+
 ## Структура отчёта
 
 1. Паспорт прогона. 2. Как агент нарезал требования. 3. Проверка каждого требования.

@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -r requirements.txt -c constraints.txt
+      - run: pip install -r server/requirements.txt -c constraints.txt
       - name: Unit tests (fake LLM, без ключа)
         run: python -m pytest
       - name: Прогон без ключа на примере (PDF и MD)
@@ -29,6 +29,35 @@ jobs:
           python scripts/self_check.py --report /tmp/ci/report_md.md
       - name: Проверка репозитория
         run: python scripts/self_check.py --repo
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-fund --no-audit
+      - run: npm run build
+      - run: npm run typecheck
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t sau-site:ci .
+      - name: Образ поднимается и отдаёт лендинг и пример
+        run: |
+          docker run -d --name sau -p 8000:8000 --memory=512m sau-site:ci
+          curl -sf --retry 20 --retry-delay 1 --retry-all-errors localhost:8000/api/health
+          curl -sf localhost:8000/ | grep -q "sau.ai"
+          curl -sf localhost:8000/api/example | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['report']['findings'] and d['document']['lines']"
+          docker logs sau
 
   audit:
     runs-on: ubuntu-latest

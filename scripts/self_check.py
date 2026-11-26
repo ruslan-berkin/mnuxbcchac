@@ -145,7 +145,7 @@ SECRET_PATTERNS = [r"AIza[0-9A-Za-z_\-]{30,}", r"sk-[A-Za-z0-9]{20,}", r"(?i)api
 def check_repo() -> list[str]:
     errors: list[str] = []
     for name in ("README.md", "PLAN.md", "CLAUDE.md", ".env.example", ".gitignore",
-                 "requirements.txt", "constraints.txt", "pyproject.toml", ".github/workflows/ci.yml",
+                 "requirements.txt", "constraints.txt", "pyproject.toml", "Dockerfile", ".dockerignore", ".github/workflows/ci.yml",
                  "reqcheck/templates/report.md.j2", "scripts/self_check.py"):
         if not (ROOT / name).is_file():
             errors.append(f"Нет файла {name}.")

@@ -1,0 +1,20 @@
+# секреты и локальное
+.env
+.env.*
+**/.env
+.git
+.venv
+.cache
+.claude
+.pytest_cache
+**/__pycache__
+**/*.pyc
+.DS_Store
+**/.DS_Store
+REVIEW.md
+# фронтенд собирается внутри образа
+web/node_modules
+web/.next
+web/out
+tests
+design
