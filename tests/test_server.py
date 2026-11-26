@@ -9,14 +9,16 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from reqcheck.ground import normalize  # noqa: E402
-from server.main import create_app, load_example  # noqa: E402
+from server.main import create_app, example_parts, load_example  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def _fresh_example_cache():
     load_example.cache_clear()
+    example_parts.cache_clear()
     yield
     load_example.cache_clear()
+    example_parts.cache_clear()
 
 
 @pytest.fixture
@@ -34,6 +36,7 @@ def client(web_dir):
 
 def test_health_reports_live_flag(client, monkeypatch):
     monkeypatch.delenv("SITE_LIVE", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "fake")
     assert client.get("/api/health").json()["live"] is True
     monkeypatch.setenv("SITE_LIVE", "0")
     body = client.get("/api/health").json()
@@ -135,3 +138,10 @@ def test_utf16_offsets_for_astral_characters():
     from server.view import _utf16
 
     assert _utf16("a😀b", 2) == 3 and _utf16("тенге ₸", 7) == 7
+
+
+def test_health_not_live_without_key(client, monkeypatch):
+    monkeypatch.delenv("SITE_LIVE", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "openai_compat")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert client.get("/api/health").json()["live"] is False

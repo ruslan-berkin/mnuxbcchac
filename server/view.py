@@ -5,6 +5,7 @@ from __future__ import annotations
 from reqcheck.criteria import CRITERIA
 from reqcheck.ground import GroundIndex
 from reqcheck.models import Document, Report
+from reqcheck.questions import top_questions
 from reqcheck.summary import build_summary, top_priorities
 
 
@@ -38,6 +39,7 @@ def report_view(doc: Document, report: Report) -> dict:
         "view": {
             "highlights": highlights(doc, report),
             "priorities": [f.id for f in top_priorities(report.findings)],
+            "top_questions": [q.model_dump() for q in top_questions(report.findings)],
             "by_severity": summary.by_severity,
             "by_criterion": summary.by_criterion,
             "criteria": {c.code: {"title": c.title, "reference": c.reference} for c in CRITERIA.values()},
