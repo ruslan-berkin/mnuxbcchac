@@ -200,7 +200,7 @@ def test_chat_validation_and_limits(client, fake_answers, monkeypatch):
 def test_chat_errors_are_sent_as_event_without_details(client, monkeypatch):
     class Boom(FakeLLM):
         def stream_text(self, *a, **k):
-            raise RuntimeError("секрет sk-aaaaaaaaaaaaaaaaaaaaaaaa в пути /srv/x")
+            raise RuntimeError("секрет sk-" + "a" * 24 + " в пути /srv/x")
             yield  # pragma: no cover
 
     monkeypatch.setattr("server.main.build_client", lambda settings, attempts=2: Boom())

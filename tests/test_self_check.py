@@ -42,7 +42,7 @@ def test_history_detects_secret_env_and_trailers(sc, tmp_path, monkeypatch):
     run("commit", "-q", "-m", "feat: ok")
     assert sc.check_history() == []
     (tmp_path / ".env").write_text("X=1\n")
-    (tmp_path / "b.txt").write_text("GEMINI_API_KEY=AIza" + "A" * 35 + "\n")
+    (tmp_path / "b.txt").write_text("GEMINI_API_KEY=AIza" + "SyB3x9QmZk7Lp2Vn8Rt4Wc6Yd1Fg5Hj0KaT" + "\n")
     run("add", "-f", ".env", "b.txt")
     run("commit", "-q", "-m", "feat: bad\n\nCo-Authored-By: Bot <b@b>")
     errs = " | ".join(sc.check_history())
@@ -57,3 +57,10 @@ def test_history_detects_second_author(sc, tmp_path, monkeypatch):
     (tmp_path / "a.txt").write_text("2\n")
     run("-c", "user.name=B", "commit", "-q", "-am", "b")
     assert any("больше одного автора" in e for e in sc.check_history())
+
+
+def test_obvious_placeholders_are_not_secrets(sc):
+    pattern = r"sk-[A-Za-z0-9]{20,}"
+    assert sc.find_secret(pattern, "sk-" + "a" * 30) is None
+    assert sc.find_secret(pattern, "ключ sk-" + "Zq8Lm2Xv7Rt4Wc9Yd1Fg5Hj") is not None
+    assert sc.find_secret(pattern, "sk-" + "a" * 30 + " и sk-" + "Zq8Lm2Xv7Rt4Wc9Yd1Fg5Hj") is not None

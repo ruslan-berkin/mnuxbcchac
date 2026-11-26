@@ -142,6 +142,15 @@ def check_report(path: Path) -> list[str]:
 SECRET_PATTERNS = [r"AIza[0-9A-Za-z_\-]{30,}", r"sk-[A-Za-z0-9]{20,}", r"(?i)api[_-]?key\s*=\s*['\"]?(?!your_)[A-Za-z0-9_\-]{20,}"]
 
 
+def find_secret(pattern: str, text: str) -> str | None:
+    """Первое совпадение с шаблоном секрета, кроме явных заглушек из одного повторяющегося символа."""
+    for m in re.finditer(pattern, text):
+        body = re.sub(r"(?i)^(?:sk-|aiza|gsk_|api[_-]?key\s*=\s*['\"]?)", "", m.group(0))
+        if len(set(body)) > 2:  # настоящий ключ случаен
+            return m.group(0)
+    return None
+
+
 def check_repo() -> list[str]:
     errors: list[str] = []
     for name in ("README.md", "PLAN.md", "CLAUDE.md", ".env.example", ".gitignore",
@@ -169,7 +178,7 @@ def check_repo() -> list[str]:
             except UnicodeDecodeError:
                 continue
             for pat in SECRET_PATTERNS:
-                if re.search(pat, content):
+                if find_secret(pat, content):
                     errors.append(f"Похоже на секрет в {f} (шаблон {pat}).")
     errors += check_readme()
     if (ROOT / ".git").exists():
@@ -215,9 +224,9 @@ def check_history() -> list[str]:
         errors.append("История: файл .env когда-то попадал в коммит.")
     patch = _git("log", "-p", "--all")
     for pat in SECRET_PATTERNS:
-        m = re.search(pat, patch)
-        if m:
-            errors.append(f"История: похоже на секрет (шаблон {pat}): {m.group(0)[:12]}…")
+        hit = find_secret(pat, patch)
+        if hit:
+            errors.append(f"История: похоже на секрет (шаблон {pat}): {hit[:12]}…")
     msgs = _git("log", "--all", "--format=%B")
     if re.search(r"(?im)^co-authored-by:|generated with|claude\.ai/code", msgs):
         errors.append("История: в сообщениях коммитов есть трейлеры или упоминания ассистента.")
