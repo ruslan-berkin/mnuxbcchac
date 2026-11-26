@@ -193,6 +193,13 @@ docker run -p 8000:8000 -e LLM_PROVIDER=openai_compat -e OPENAI_API_KEY=... -e O
 `SITE_CHAT_PER_IP` (40), `SITE_RECHECK_PER_IP` (5), `SITE_DAILY_CHAT` (300), `SITE_DAILY_RECHECK` (40),
 `SITE_MAX_CHAT_TOKENS` (1500). Локально без Docker: `SITE_DOTENV=1 uvicorn server.main:app` (читает `.env`).
 
+### Деплой на Render
+
+1. Render → **New → Blueprint** → этот репозиторий (`render.yaml`: Docker, free, health check `/api/health`).
+2. В кабинете вписать `OPENAI_API_KEY` и `OPENAI_MODEL`. Лимиты уже заданы в `render.yaml`.
+3. В кабинете OpenAI поставить **жёсткий месячный лимит расходов**.
+4. Бесплатный сервис засыпает: перед демо открыть `/api/health` и дождаться ответа (около минуты).
+
 Референс дизайна в `design/teal-treasury-landing.tsx`: шаблон «Teal Treasury Landing» (MIT, Kedhareswer Naidu).
 
 ## Структура отчёта

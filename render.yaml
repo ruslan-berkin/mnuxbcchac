@@ -1,0 +1,38 @@
+# Blueprint для Render: один Docker-сервис (FastAPI + статический фронтенд).
+# Render → New → Blueprint → этот репозиторий. Значения с sync: false вписываются в кабинете,
+# в репозитории их нет. В кабинете OpenAI обязательно поставьте жёсткий лимит расходов.
+services:
+  - type: web
+    name: sau-ai
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: LLM_PROVIDER
+        value: openai_compat
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      # Лимиты платного ключа
+      - key: SITE_LIVE
+        value: "1"
+      - key: SITE_DAILY_RUNS
+        value: "5"
+      - key: SITE_RUNS_PER_IP
+        value: "1"
+      - key: SITE_CHAT_PER_IP
+        value: "40"
+      - key: SITE_RECHECK_PER_IP
+        value: "5"
+      - key: SITE_DAILY_CHAT
+        value: "300"
+      - key: SITE_DAILY_RECHECK
+        value: "40"
+      - key: SITE_MAX_CHAT_TOKENS
+        value: "1500"
+      - key: LLM_FALLBACK
+        value: none
