@@ -60,17 +60,37 @@ def ensure_questions(
 
 _YES_NO = re.compile(r"^(?:должен|должна|должно|должны|нужно|следует|может|можно|является|требуется|будет)\b[^?]*\bли\b",
                      re.IGNORECASE)
-# «…, A или B?»: первый вариант отделён запятой, тире или двоеточием — иначе не угадываем
-_ALTERNATIVE = re.compile(r"[,—:]\s*([^,—:?;]{2,60}?)\s+или\s+([^,—:?;]{2,60}?)\?\s*$", re.IGNORECASE)
+# «…, если A или B?» — это условие вопроса, а не выбор между двумя ответами
+_CONDITION = re.compile(r"^(?:если|когда|где|пока|чтобы|при условии|в случае)\b", re.IGNORECASE)
+# «…ли …, и если да, по какому адресу?» — одного «Да» мало
+_FOLLOW_UP = re.compile(r"\bесли (?:да|нет)\b", re.IGNORECASE)
+# Две кнопки — только когда вариантов ровно два: «…: A или B?» либо «…, A или B?» с единственной запятой
+_ALTERNATIVE = re.compile(r"^([^,?;]{2,60}?)\s+или\s+([^,?;]{2,60}?)\?$", re.IGNORECASE)
+_LEAD = re.compile(r"[:—]")
+
+
+def _two_choices(q: str) -> list[str]:
+    if len(re.findall(r"\bили\b", q, re.IGNORECASE)) != 1:
+        return []
+    marks = list(_LEAD.finditer(q))
+    if marks:
+        tail = q[marks[-1].end():]
+    elif q.count(",") == 1:
+        tail = q.split(",", 1)[1]
+    else:
+        return []
+    m = _ALTERNATIVE.match(tail.strip())
+    if not m or _CONDITION.match(m.group(1).strip()):
+        return []
+    return [part.strip().capitalize() if part.strip().islower() else part.strip() for part in m.groups()]
 
 
 def answer_options(question: str) -> list[str]:
     """Варианты ответа кнопками — только когда они однозначно видны в самом вопросе."""
     q = question.strip()
-    m = _ALTERNATIVE.search(q)
-    if m:
-        return [part.strip().capitalize() if part.strip().islower() else part.strip() for part in m.groups()]
-    if _YES_NO.match(q) and " или " not in q.lower():
+    if choices := _two_choices(q):
+        return choices
+    if _YES_NO.match(q) and " или " not in q.lower() and not _FOLLOW_UP.search(q):
         return ["Да", "Нет"]
     return []
 
