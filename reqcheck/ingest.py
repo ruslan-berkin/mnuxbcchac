@@ -201,11 +201,22 @@ def _pdf_tables(page, max_rows: int) -> tuple[list[tuple[object, list[str]]], bo
     return out, False
 
 
+def _set_pdf_layout(enabled: bool) -> None:
+    """Анализ макета pymupdf загружает onnxruntime (~270 МБ). Без него таблицы ищутся по линиям."""
+    import pymupdf
+
+    try:
+        pymupdf.use_layout(enabled)
+    except (AttributeError, NotImplementedError):  # модуль макета не установлен
+        pass
+
+
 def _read_pdf(
     p: Path, limits: Limits, warnings: list[str], incomplete: list[str]
 ) -> tuple[list[str], list[Block], str]:
     import pymupdf
 
+    _set_pdf_layout(limits.pdf_layout)
     pages = []
     table_fail: list[int] = []
     with pymupdf.open(p) as pdf:

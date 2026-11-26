@@ -216,3 +216,19 @@ def test_dedupe_scales(tmp_path):
     t = time.monotonic()
     out = finalize_findings(fs)
     assert len(out) == 1500 and time.monotonic() - t < 10
+
+
+def test_web_limits_accept_env_overrides(monkeypatch):
+    monkeypatch.setenv("REQCHECK_PARSE_MEMORY_MB", "900")
+    monkeypatch.setenv("REQCHECK_PDF_LAYOUT", "0")
+    lim = Limits.from_env(Limits.web())
+    assert lim.parse_memory_mb == 900 and lim.pdf_layout is False
+    assert lim.max_pages == Limits.web().max_pages  # остальные значения остаются веб-лимитами
+
+
+def test_pdf_parses_with_layout_off_and_on(repo_root):
+    pdf = repo_root / "examples" / "input" / "requirements.pdf"
+    off = load_document(pdf, Limits(sandbox=False, pdf_layout=False))
+    on = load_document(pdf, Limits(sandbox=False, pdf_layout=True))
+    assert any("Ф-3" in line for line in off.lines) and any("Ф-3" in line for line in on.lines)
+    assert abs(len(off.lines) - len(on.lines)) <= 3

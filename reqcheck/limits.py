@@ -31,12 +31,13 @@ class Limits:
     max_workers: int = 8
     sandbox: bool = True  # PDF и DOCX разбираются в отдельном процессе с лимитами
     parse_timeout_s: float = 60.0
-    parse_memory_mb: int = 2048
+    parse_memory_mb: int = 2048  # лимит адресного пространства процесса-парсера (RLIMIT_AS)
+    pdf_layout: bool = True  # нейросетевой анализ макета pymupdf (onnxruntime): +270 МБ памяти
 
     @classmethod
-    def from_env(cls) -> "Limits":
-        """REQCHECK_MAX_<ИМЯ> (в верхнем регистре) переопределяет значение по умолчанию."""
-        base = cls()
+    def from_env(cls, base: "Limits | None" = None) -> "Limits":
+        """REQCHECK_MAX_<ИМЯ> (в верхнем регистре) переопределяет значения base (по умолчанию обычные)."""
+        base = base or cls()
         kw = {}
         for f in fields(cls):
             raw = os.getenv(f"REQCHECK_{f.name.upper()}")
