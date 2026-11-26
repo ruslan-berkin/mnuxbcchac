@@ -1,7 +1,7 @@
 "use client"
 
 // Нарисованная девушка слева от планшета: кепка MNU, футболка BCC, указательным пальцем касается края кнопки.
-// Фигура собрана по суставам в координатах обёртки (1280×720): голова 118, плечи 160, талия 96, бёдра 144.
+// Фигура собрана по суставам в координатах обёртки (1280×720): голова 133, плечи 160, талия 96, бёдра 144.
 // Анимация в globals.css: дыхание, моргание, наклон головы и тычок — сгибаются плечо и локоть, а не вся рука.
 import { useEffect, useRef, useState } from "react"
 
@@ -81,7 +81,7 @@ function RelaxedHand() {
 }
 
 // голова нарисована в своих координатах (подбородок в 320,176) и переносится на шею
-const HEAD = "translate(190 190) scale(0.76) translate(-320 -176)"
+const HEAD = "translate(190 206) scale(0.86) translate(-320 -176)"
 
 function HairBack() {
   return (
@@ -209,8 +209,8 @@ export default function Girl() {
               <path fill="none" stroke={SHIRT_SHADE} strokeWidth="4" d={near.cuff} />
             </g>
             {/* шея и футболка: торс лежит поверх начала рукавов, поэтому ничего не торчит */}
-            <path fill={SKIN} d="M172 168H208V232Q190 250 172 232Z" />
-            <path fill={SKIN_SHADE} opacity="0.55" d="M172 178Q190 204 208 178V194Q190 214 172 194Z" />
+            <path fill={SKIN} d="M172 186H208V232Q190 250 172 232Z" />
+            <path fill={SKIN_SHADE} opacity="0.55" d="M172 196Q190 220 208 196V211Q190 231 172 211Z" />
             <path fill={SHIRT} d="M172 222C158 230 138 232 124 246C122 266 130 282 134 300C132 330 142 356 142 384L141 398H239L238 384C238 356 248 330 246 300C250 284 260 266 256 246C242 232 222 230 208 222Q190 246 172 222Z" />
             <path fill="none" stroke={SHIRT_SHADE} strokeWidth="4" strokeLinecap="round" d="M172 222Q190 246 208 222" />
             <g transform="translate(163 291) scale(0.78)" fill="none" stroke="#fff" strokeLinejoin="round">
