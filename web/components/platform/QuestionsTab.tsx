@@ -3,7 +3,7 @@
 // Блокирующие вопросы агента и перепроверка с ответами — отдельная вкладка, а не часть переписки.
 import { useState } from "react"
 import { recheck, type RecheckResult, type TopQuestion } from "../api"
-import { SEVERITY } from "./meta"
+import { RECHECK, SEVERITY } from "./meta"
 import RecheckCard from "./RecheckCard"
 import Refs from "./Refs"
 
@@ -91,6 +91,11 @@ export default function QuestionsTab({ runId, questions, total, answers, onAnswe
                   <p className="text-xs text-muted">
                     <span className={`font-semibold ${SEVERITY[q.severity].text}`}>{SEVERITY[q.severity].one}</span> · замечание{" "}
                     <Refs text={q.finding_id} onRef={onRef} />
+                    {result?.items.filter((i) => i.finding_id === q.finding_id).map((i) => (
+                      <span key={i.finding_id} className={`ml-2 rounded-full px-2 py-0.5 font-medium ${RECHECK[i.status].tone}`}>
+                        {RECHECK[i.status].label}
+                      </span>
+                    ))}
                   </p>
                   {answers[q.finding_id] ? (
                     <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm">

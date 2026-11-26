@@ -1,5 +1,5 @@
-import type { Finding } from "../api"
-import { SEVERITY, place } from "./meta"
+import type { Finding, RecheckStatus } from "../api"
+import { RECHECK, SEVERITY, place } from "./meta"
 
 type Props = {
   finding: Finding
@@ -8,13 +8,14 @@ type Props = {
   selected: boolean
   onSelect: (id: string) => void
   onRequirement: (id: string) => void
+  checked?: RecheckStatus
 }
 
-export default function FindingCard({ finding: f, title, reference, selected, onSelect, onRequirement }: Props) {
+export default function FindingCard({ finding: f, title, reference, selected, onSelect, onRequirement, checked }: Props) {
   return (
     <article
       id={`card-${f.id}`}
-      className={`space-y-2 rounded-2xl border p-4 ${selected ? "border-ink bg-accent-soft/40" : "border-rule"}`}
+      className={`space-y-2 rounded-2xl border p-4 ${selected ? "border-ink bg-accent-soft/40" : "border-rule"} ${checked === "resolved" ? "opacity-60" : ""}`}
     >
       <header className="flex flex-wrap items-center gap-2 text-sm">
         <button type="button" onClick={() => onSelect(f.id)} className="font-semibold underline-offset-4 hover:underline">
@@ -23,6 +24,7 @@ export default function FindingCard({ finding: f, title, reference, selected, on
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${SEVERITY[f.severity].badge}`}>
           {SEVERITY[f.severity].one}
         </span>
+        {checked && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${RECHECK[checked].tone}`}>{RECHECK[checked].label}</span>}
         <span title={reference} className="text-muted">
           <code className="font-semibold text-ink">{f.criterion}</code> {title}
         </span>

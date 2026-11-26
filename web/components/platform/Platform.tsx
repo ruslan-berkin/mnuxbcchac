@@ -11,14 +11,15 @@ import QuestionsTab from "./QuestionsTab"
 import RecheckCard from "./RecheckCard"
 import SummaryTab from "./SummaryTab"
 import TopBar from "./TopBar"
-import { SEVERITY, SEVERITY_ORDER, scrollBehavior } from "./meta"
-import { load, save } from "./storage"
+import { SEVERITY, SEVERITY_ORDER, applyRecheck, scrollBehavior } from "./meta"
+import { useStored } from "./storage"
 
 type Tab = "report" | "findings" | "questions" | "requirements"
 type Filters = { severity: Severity | ""; criterion: string; requirement: string }
 type Source = { kind: "example" } | { kind: "run"; id: string }
 type Jump = { kind: "doc"; id: string; n: number } | { kind: "card"; id: string; n: number }
 
+const NO_ANSWERS: Record<string, string> = {}
 const NO_FILTERS: Filters = { severity: "", criterion: "", requirement: "" }
 
 export default function Platform() {
@@ -36,14 +37,12 @@ export default function Platform() {
 
   const [source, setSource] = useState<Source | null>(null)
   const [status, setStatus] = useState<RunStatus | null>(null)
-  const [result, setResult] = useState<RecheckResult | null>(null)
   const [uploading, setUploading] = useState(false)
   const [reload, setReload] = useState(0)
 
   const open = useCallback((next: Source) => {
     setData(null)
     setStatus(null)
-    setResult(null)
     setError(null)
     setSelected(null)
     setFlashLines(null)
@@ -120,29 +119,28 @@ export default function Platform() {
   )
 
   const runId = source?.kind === "run" ? source.id : "example"
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const answersFor = useRef<string | null>(null)
+  // Ответы и результат перепроверки привязаны к прогону и переживают перезагрузку.
+  const [answers, setAnswers] = useStored<Record<string, string>>(`sau-answers:${runId}`, NO_ANSWERS)
+  const [result, setResult] = useStored<RecheckResult | null>(`sau-recheck:${runId}`, null)
 
-  // Ответы аналитика общие для вкладки вопросов и чата и переживают перезагрузку.
-  useEffect(() => {
-    setAnswers(load<Record<string, string>>(`sau-answers:${runId}`, {}))
-    answersFor.current = null
-  }, [runId])
-  useEffect(() => {
-    if (answersFor.current === runId) save(`sau-answers:${runId}`, answers)
-    else answersFor.current = runId
-  }, [runId, answers])
+  const answer = useCallback(
+    (id: string, text: string) => {
+      const value = text.trim().slice(0, 1000)
+      setAnswers((a) => {
+        const next = { ...a }
+        if (value) next[id] = value
+        else delete next[id]
+        return next
+      })
+      // изменили уже проверенный ответ — прежняя перепроверка больше не действует
+      setResult((r) => (r && r.items.some((i) => i.finding_id === id) ? null : r))
+    },
+    [setAnswers, setResult],
+  )
 
-  const answer = useCallback((id: string, text: string) => {
-    const value = text.trim().slice(0, 1000)
-    setAnswers((a) => {
-      const next = { ...a }
-      if (value) next[id] = value
-      else delete next[id]
-      return next
-    })
-    setResult(null)
-  }, [])
+  const checked = useMemo(() => new Map((result?.items ?? []).map((i) => [i.finding_id, i.status])), [result])
+  // всё, что показывает цифры и вердикт, смотрит на отчёт с учётом перепроверки
+  const current = useMemo(() => (data ? applyRecheck(data, result) : null), [data, result])
 
   const showFindings = useCallback((document: boolean) => {
     setTab("findings")
@@ -230,8 +228,9 @@ export default function Platform() {
           (!filters.severity || f.severity === filters.severity) &&
           (!filters.criterion || f.criterion === filters.criterion) &&
           (!filters.requirement || f.requirement_ids.includes(filters.requirement)),
-      ),
-    [data, filters],
+      )
+        .sort((x, y) => Number(checked.get(x.id) === "resolved") - Number(checked.get(y.id) === "resolved")),
+    [data, filters, checked],
   )
 
   const totalQuestions = data?.report.findings.filter((f) => f.question).length ?? 0
@@ -251,7 +250,7 @@ export default function Platform() {
   )
   const tabs: [Tab, string, number | null][] = [
     ["report", "Отчёт", null],
-    ["findings", "Замечания", data?.report.findings.length ?? 0],
+    ["findings", "Замечания", current?.report.findings.length ?? 0],
     ["questions", "Вопросы агента", pending.length],
     ["requirements", "Требования", data?.report.requirements.length ?? 0],
   ]
@@ -259,7 +258,7 @@ export default function Platform() {
 
   return (
     <div className="flex h-dvh flex-col bg-[#f4f7f5]">
-      <TopBar report={data?.report ?? null} title={data?.document.title ?? status?.name ?? null} runId={runId}
+      <TopBar report={current?.report ?? null} rechecked={result !== null} title={data?.document.title ?? status?.name ?? null} runId={runId}
         busy={uploading || running} onUpload={upload} onExample={() => open({ kind: "example" })} />
 
       {error && (
@@ -280,7 +279,7 @@ export default function Platform() {
       )}
       {!data && !error && !running && <p className="p-4 text-muted">Загружаю пример…</p>}
 
-      {data && (
+      {data && current && (
         <>
           <div role="group" aria-label="Что показывать" className="grid grid-cols-2 gap-1 border-b border-rule bg-page p-2 text-sm lg:hidden">
             {([[false, "Результаты проверки"], [true, "Чат с агентом"]] as [boolean, string][]).map(([chat, label]) => (
@@ -317,7 +316,8 @@ export default function Platform() {
                 {tab === "report" && (
                   <div className="h-full overflow-y-auto">
                     {result && <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6"><RecheckCard result={result} onRef={openRef} /></div>}
-                    <SummaryTab data={data} findings={findings} onSelect={focusFinding} onFilter={applyFilter} ask={ask} />
+                    <SummaryTab data={current} findings={findings} onSelect={focusFinding} onFilter={applyFilter} ask={ask}
+                      before={result ? data : null} onReset={() => setResult(null)} />
                   </div>
                 )}
 
@@ -331,7 +331,7 @@ export default function Platform() {
                     <div className="mx-auto max-w-4xl space-y-3">
                       <p className="text-sm text-muted">Так агент нарезал документ. Нажмите на номер, чтобы увидеть требование в тексте.</p>
                       <div className="overflow-x-auto rounded-2xl border border-rule bg-page px-4 py-2">
-                        <RequirementsTab data={data} onRequirement={showRequirement} />
+                        <RequirementsTab data={current} onRequirement={showRequirement} />
                       </div>
                     </div>
                   </div>
@@ -359,7 +359,10 @@ export default function Platform() {
                           </select>
                         </div>
                         <p className="flex flex-wrap items-center justify-between gap-x-3 text-muted">
-                          <span>Показано {visible.length} из {data.report.findings.length}</span>
+                          <span>
+                            Показано {visible.length} из {data.report.findings.length}
+                            {result && `, открыто ${current.report.findings.length}`}
+                          </span>
                           <span className="flex gap-3">
                             <button type="button" onClick={() => setFilters(NO_FILTERS)} className="underline underline-offset-4 hover:text-ink">Сбросить</button>
                             <button type="button" onClick={() => setDocOpen(true)} className="font-semibold text-accent xl:hidden">Открыть документ</button>
@@ -371,7 +374,7 @@ export default function Platform() {
                           <div key={f.id} className="rounded-2xl bg-page">
                             <FindingCard finding={f} title={data.view.criteria[f.criterion]?.title ?? ""}
                               reference={data.view.criteria[f.criterion]?.reference ?? ""} selected={selected === f.id}
-                              onSelect={selectFromList} onRequirement={showRequirement} />
+                              onSelect={selectFromList} onRequirement={showRequirement} checked={checked.get(f.id)} />
                           </div>
                         ))}
                         {!visible.length && <p className="text-muted">Под эти фильтры замечаний нет.</p>}
@@ -402,7 +405,7 @@ export default function Platform() {
             </main>
 
             <aside aria-label="Чат с агентом" className={`${chatOpen ? "flex" : "hidden"} min-h-0 flex-col border-rule lg:flex lg:border-l`}>
-              <ChatPane key={runId} runId={runId} data={data} answers={answers} onRef={openRef} />
+              <ChatPane key={runId} runId={runId} data={current} answers={answers} onRef={openRef} />
             </aside>
           </div>
         </>

@@ -9,6 +9,8 @@ type Props = {
   onSelect: (id: string) => void
   onFilter: (filter: { severity?: Severity; criterion?: string }) => void
   ask: ReactNode
+  before: ReportView | null
+  onReset: () => void
 }
 
 const MEANING: Record<Severity, string> = {
@@ -102,14 +104,21 @@ function CriteriaPie({ data, onFilter }: { data: ReportView; onFilter: (f: { cri
   )
 }
 
-export default function SummaryTab({ data, findings, onSelect, onFilter, ask }: Props) {
+export default function SummaryTab({ data, findings, onSelect, onFilter, ask, before, onReset }: Props) {
   const { report, view } = data
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-4 md:p-6">
       <section aria-label="Вердикт" className={`space-y-3 rounded-2xl border border-rule border-l-8 bg-page p-5 ${EDGE[report.verdict.code]}`}>
-        <p className="text-sm text-muted">Отчёт аналитики</p>
+        <p className="text-sm text-muted">{before ? "После ваших ответов" : "Отчёт аналитики"}</p>
         <h2 className="text-2xl font-semibold leading-tight">{VERDICT[report.verdict.code].short}</h2>
         <p className="text-sm">{report.verdict.text}</p>
+        {before && (
+          <p className="rounded-xl bg-accent-soft px-3 py-2 text-sm">
+            Было: «{VERDICT[before.report.verdict.code].short}», замечаний {before.report.findings.length}. Стало замечаний{" "}
+            {report.findings.length}. Документ и скачиваемый отчёт не меняются: исправить текст всё равно нужно.{" "}
+            <button type="button" onClick={onReset} className="font-semibold underline underline-offset-2">Вернуть исходный результат</button>
+          </p>
+        )}
         {report.incomplete_reasons.length > 0 && (
           <ul className="list-disc pl-5 text-sm text-muted">
             {report.incomplete_reasons.map((r) => <li key={r}>{r}</li>)}
@@ -131,7 +140,12 @@ export default function SummaryTab({ data, findings, onSelect, onFilter, ask }: 
         {SEVERITY_ORDER.map((s) => (
           <button key={s} type="button" onClick={() => onFilter({ severity: s })}
             className="rounded-2xl border border-rule bg-page p-4 text-left hover:border-ink">
-            <span className={`block text-4xl font-semibold tabular-nums ${SEVERITY[s].text}`}>{view.by_severity[s]}</span>
+            <span className={`block text-4xl font-semibold tabular-nums ${SEVERITY[s].text}`}>
+              {before && before.view.by_severity[s] !== view.by_severity[s] && (
+                <span className="mr-2 text-2xl text-muted line-through">{before.view.by_severity[s]}</span>
+              )}
+              {view.by_severity[s]}
+            </span>
             <span className="block font-semibold">{SEVERITY[s].label}</span>
             <span className="text-xs text-muted">{MEANING[s]}</span>
           </button>
