@@ -77,6 +77,19 @@
 {% endfor %}
 
 ## 5. {{ titles[4] }}
+{% if top %}
+
+### Главные вопросы
+
+Блокирующие вопросы: сначала критичные, затем затрагивающие больше требований, по одному на тему.
+
+{% for q in top %}
+- Вопрос {{ loop.index }} · {{ q.finding_id }}{% if q.requirement_ids %} · {{ q.requirement_ids | join(", ") }}{% endif %} · {{ sev_ru[q.severity] }}: {{ q.question | inline }}{% if q.options %} Варианты: {{ q.options | join(" / ") | inline }}.{% endif %}
+
+{% endfor %}
+
+Ниже — все вопросы по требованиям.
+{% endif %}
 {% if not question_groups and not general_questions %}
 
 Уточняющих вопросов нет.{% if passport.llm_mode == "lint-only" %} В режиме lint-only вопросы формируют только правила; основной набор вопросов готовит LLM.{% endif %}

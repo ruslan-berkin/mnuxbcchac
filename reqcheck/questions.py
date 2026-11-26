@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
 
+from pydantic import BaseModel
+
+from reqcheck.ground import normalize
 from reqcheck.llm.base import LLMClient, LLMValidationError, structured_call
 from reqcheck.llm.cache import DiskCache
 from reqcheck.llm.schemas import QOut
@@ -50,3 +54,58 @@ def ensure_questions(
     if missing:
         warnings.append(f"Нет вопроса к замечаниям: {', '.join(missing)}.")
     return result, warnings
+
+
+# ------------------------------------------------------------ главные (блокирующие) вопросы
+
+_YES_NO = re.compile(r"^(?:должен|должна|должно|должны|нужно|следует|может|можно|является|требуется|будет)\b[^?]*\bли\b",
+                     re.IGNORECASE)
+# «…, A или B?»: первый вариант отделён запятой, тире или двоеточием — иначе не угадываем
+_ALTERNATIVE = re.compile(r"[,—:]\s*([^,—:?;]{2,60}?)\s+или\s+([^,—:?;]{2,60}?)\?\s*$", re.IGNORECASE)
+
+
+def answer_options(question: str) -> list[str]:
+    """Варианты ответа кнопками — только когда они однозначно видны в самом вопросе."""
+    q = question.strip()
+    m = _ALTERNATIVE.search(q)
+    if m:
+        return [part.strip().capitalize() if part.strip().islower() else part.strip() for part in m.groups()]
+    if _YES_NO.match(q) and " или " not in q.lower():
+        return ["Да", "Нет"]
+    return []
+
+
+class TopQuestion(BaseModel):
+    finding_id: str
+    question: str
+    severity: str
+    requirement_ids: list[str]
+    options: list[str] = []
+
+
+def _same_topic(a: Finding, b: Finding) -> bool:
+    """Одна тема: общая цитата или заметно пересекающиеся требования."""
+    qa = [normalize(q) for q in a.quotes]
+    qb = [normalize(q) for q in b.quotes]
+    if any(x and y and (x in y or y in x) for x in qa for y in qb):
+        return True
+    ra, rb = set(a.requirement_ids), set(b.requirement_ids)
+    return bool(ra and rb) and len(ra & rb) / len(ra | rb) >= 0.5
+
+
+def top_questions(findings: list[Finding], n: int = 10) -> list[TopQuestion]:
+    """Блокирующие вопросы: сначала критичные, затем затрагивающие больше требований, по одному на тему."""
+    rank = {"critical": 0, "major": 1, "minor": 2}
+    pool = sorted(
+        (f for f in findings if f.question and f.severity in ("critical", "major")),
+        key=lambda f: (rank[f.severity], -len(f.requirement_ids), f.id),
+    )
+    chosen: list[Finding] = []
+    for f in pool:
+        if len(chosen) >= n:
+            break
+        if not any(_same_topic(f, g) for g in chosen):
+            chosen.append(f)
+    return [TopQuestion(finding_id=f.id, question=f.question or "", severity=f.severity,
+                        requirement_ids=f.requirement_ids, options=answer_options(f.question or ""))
+            for f in chosen]

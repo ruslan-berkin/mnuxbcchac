@@ -8,6 +8,7 @@ from jinja2 import Environment, PackageLoader
 
 from reqcheck.criteria import CRITERIA, REQUIREMENT_CODES, SET_CODES
 from reqcheck.models import Anchor, Finding, Report, Requirement
+from reqcheck.questions import top_questions
 from reqcheck.summary import SEVERITY_RU, build_summary, top_priorities
 
 SECTION_TITLES = [
@@ -137,6 +138,7 @@ def render_report(report: Report) -> str:
         report=report, passport=report.passport, titles=SECTION_TITLES, report_title=REPORT_TITLE,
         req_blocks=req_blocks, set_groups=set_groups, summary=summary,
         question_groups=question_groups, general_questions=general,
+        top=top_questions(report.findings),
         priorities=top_priorities(report.findings), sev_ru=SEVERITY_RU,
         criteria=CRITERIA, requirement_codes=REQUIREMENT_CODES, set_codes=SET_CODES,
         reqs_by_id={r.id: r for r in report.requirements},

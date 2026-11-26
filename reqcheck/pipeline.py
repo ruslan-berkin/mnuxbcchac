@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -114,6 +114,7 @@ def run(
     display_name: str | None = None,
     cache_dir: str | Path | None = None,
     cache_namespace: str = "",
+    on_stage: Callable[[str], None] | None = None,
 ) -> Report:
     """Один прогон. Для сервера: `limits=Limits.web()`, `display_name` (имя файла пользователя),
     `cache_namespace` (арендатор) или `use_cache=False`, отдельный `output_path` на запрос."""
@@ -122,6 +123,15 @@ def run(
     limits = limits or Limits.from_env()
     budget = Budget(limits)
 
+    def stage(name: str) -> None:
+        """Сообщить о входе в этап (прогресс на сайте). Ошибка в колбэке прогон не роняет."""
+        if on_stage is not None:
+            try:
+                on_stage(name)
+            except Exception:  # noqa: BLE001
+                log.warning("on_stage(%s) завершился ошибкой", name, exc_info=True)
+
+    stage("ingest")
     doc = load_document(input_path, limits=limits, display_name=display_name)  # ошибки ввода: коды 2 и 3
 
     mode: LLMMode = "lint-only"
@@ -167,6 +177,7 @@ def run(
         incomplete: list[str] = list(doc.incomplete)
         breakdown: dict[str, int] = {}
 
+        stage("segment")
         requirements, dropped_reqs, seg_warnings = segment(doc, llm, cache, nworkers, limits)
         warnings.extend(seg_warnings)
         if seg_warnings:
@@ -183,6 +194,7 @@ def run(
         conclusions: dict[str, str] = {}
         llm_total = 0
         if mode == "full" and requirements:
+            stage("check_each")
             each_findings, unchecked, discarded, each_notes = check_each(doc, requirements, llm, cache, nworkers)  # type: ignore[arg-type]
             for n in each_notes:
                 warnings.append(f"Контекст раздела обрезан для проверки: {n}.")
@@ -190,6 +202,7 @@ def run(
                      len(each_findings), len(unchecked), discarded)
             if discarded:
                 breakdown["ответ модели: ID вне пачки или критерий вне списка"] = discarded
+            stage("check_set")
             set_findings, conclusions, set_warnings = check_set(doc, requirements, llm, cache, nworkers)  # type: ignore[arg-type]
             log.info("check_set: замечаний %d", len(set_findings))
             warnings.extend(set_warnings)
@@ -211,6 +224,7 @@ def run(
                             f"{limits.max_lint_per_rule} от каждого: " + ", ".join(truncated) + ".")
         findings += lint_findings
 
+        stage("ground")
         findings, dropped_findings = ground_findings_detailed(
             doc, findings, {r.id: r.anchor.line_start for r in requirements})
         dropped = len(dropped_findings) + dropped_reqs
@@ -239,6 +253,7 @@ def run(
         rejected_notes: list[dict[str, str]] = []
         merged = 0
         if mode == "full":
+            stage("verify")
             try:
                 findings, merged, w = consolidate(findings, llm, cache)  # type: ignore[arg-type]
                 warnings.extend(w)
@@ -296,6 +311,7 @@ def run(
             verdict=compute_verdict(findings, mode, incomplete if mode == "full" else ()),
             warnings=warnings,
         )
+        stage("render")
         write_atomic(json_path, report.model_dump_json(indent=2))
         write_atomic(out, render_report(report))  # последним: наличие .md значит, что прогон завершён
         log.info("Отчёт записан: %s", out)
