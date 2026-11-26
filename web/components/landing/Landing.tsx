@@ -106,16 +106,16 @@ export default function Landing() {
       gsap.fromTo("[data-tablet]",
         { rotationX: 46, rotationY: -30, rotationZ: 9, y: 120, scale: 0.72 },
         { rotationX: 0, rotationY: 0, rotationZ: 0, y: 0, scale: 1, ease: "none",
-          scrollTrigger: { trigger: "[data-tablet-section]", start: "top 90%", end: "top 8%", scrub: 0.6 } })
-      // Когда планшет почти развернулся, из-за него выглядывает девушка и показывает на загрузку.
+          scrollTrigger: { trigger: "[data-tablet-section]", start: "top 90%", end: "top 22%", scrub: 0.6 } })
+      // Когда планшет почти развернулся, слева выходит девушка и показывает на загрузку.
       let timer = 0
-      gsap.set("[data-girl]", { y: 70, autoAlpha: 0 })
+      gsap.set("[data-girl]", { x: -120, autoAlpha: 0 })
       ScrollTrigger.create({
         trigger: "[data-tablet-section]",
-        start: "top 35%",
+        start: "top 45%",
         once: true,
         onEnter: () => {
-          const tween = gsap.to("[data-girl]", { y: 0, autoAlpha: 1, duration: 0.9, ease: "back.out(1.8)" })
+          const tween = gsap.to("[data-girl]", { x: 0, autoAlpha: 1, duration: 0.9, ease: "back.out(1.6)" })
           timer = window.setTimeout(() => tween.progress(1), 1600)
         },
       })

@@ -250,48 +250,42 @@ html {
   opacity: 0.8;
 }
 
-/* Планшет и девушка. Над планшетом оставлено 28% ширины: в этих же координатах нарисованы оба слоя девушки */
+/* Планшет и девушка слева от него. Обе части живут в координатах 1280×720 */
 .tablet-wrap {
   position: relative;
   margin-inline: auto;
-  width: min(100%, 880px, calc((100svh - 96px) * 1.02));
-}
-/* проценты padding у ::before считаются от ширины самой обёртки, а не секции */
-.tablet-wrap::before {
-  content: "";
-  display: block;
-  padding-top: 28%;
+  width: min(100%, 1180px, calc((100svh - 110px) * 1.77));
+  aspect-ratio: 1280 / 720;
 }
 .stage {
   perspective: 1800px;
 }
 .tablet-slot {
-  position: relative;
-  z-index: 10;
+  position: absolute;
+  top: 1.4%;
+  left: 23.4%;
+  right: 0;
 }
 .tablet {
-  aspect-ratio: 4 / 5;
-  border-radius: clamp(22px, 3.6vw, 40px);
+  aspect-ratio: 7 / 5;
+  border-radius: clamp(14px, 3vw, 40px);
   background: var(--ink);
-  padding: clamp(8px, 1.5vw, 17px);
-  box-shadow: inset 0 0 0 2px #3a423f, 0 60px 90px -45px rgba(11, 15, 13, 0.6);
-}
-@media (min-width: 768px) {
-  .tablet {
-    aspect-ratio: 7 / 5;
-  }
+  padding: clamp(5px, 1.4vw, 16px);
+  box-shadow: inset 0 0 0 2px #3a423f, 0 60px 90px -45px rgba(17, 55, 44, 0.55);
 }
 .girl {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
+  z-index: 20;
   width: 100%;
-  height: auto;
+  height: 100%;
   overflow: visible;
   pointer-events: none;
 }
-.girl-front {
-  z-index: 20;
+@media (min-width: 768px) {
+  .girl-place {
+    transform: translateX(44px);
+  }
 }
 .girl-text {
   font-family: var(--font-display);
@@ -313,14 +307,14 @@ html {
   animation: girl-blink 4.2s infinite;
 }
 .girl-point {
-  transform-origin: 390px 232px;
+  transform-origin: 230px 335px;
   animation: girl-point 1.3s ease-in-out infinite;
 }
 .girl-tap {
   fill: none;
-  stroke: #4be094;
+  stroke: var(--accent);
   stroke-width: 5;
-  transform-origin: 494px 562px;
+  transform-origin: 570px 360px;
   animation: girl-tap 1.3s ease-out infinite;
 }
 @keyframes girl-breathe {
@@ -349,7 +343,7 @@ html {
 }
 @keyframes girl-point {
   50% {
-    transform: translateY(12px) rotate(-1.5deg);
+    transform: translateX(14px);
   }
 }
 @keyframes girl-tap {
@@ -395,7 +389,7 @@ html {
   height: 100%;
   overflow: hidden;
   border-radius: clamp(14px, 2.2vw, 24px);
-  background: #0c2a1f;
+  background: #f4faf6;
   padding: 4%;
 }
 .tablet-screen::before,
@@ -405,7 +399,7 @@ html {
   width: 80%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(46, 191, 116, 0.55), transparent);
+  background: radial-gradient(closest-side, rgba(31, 122, 62, 0.2), transparent);
   animation: blob-move 14s ease-in-out infinite alternate;
 }
 .tablet-screen::before {
@@ -424,15 +418,14 @@ html {
   height: 100%;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: 0.75rem;
-  border: 2px dashed rgba(255, 255, 255, 0.28);
+  justify-content: center;
+  border: 2px dashed rgba(31, 122, 62, 0.4);
   border-radius: clamp(10px, 1.6vw, 18px);
-  padding: 26% 1rem 1rem;
+  padding: 0.5rem;
   text-align: center;
   transition: border-color 0.2s, background-color 0.2s;
 }
 .dropzone-over {
-  border-color: #4be094;
-  background: rgba(75, 224, 148, 0.12);
+  border-color: var(--accent);
+  background: rgba(31, 122, 62, 0.1);
 }
