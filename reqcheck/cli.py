@@ -9,8 +9,14 @@ import typer
 
 from reqcheck import __version__
 from reqcheck.config import load_chain, load_env_file
-from reqcheck.errors import ReqcheckError
-from reqcheck.pipeline import run, sidecar_paths
+from reqcheck.errors import MissingKeyError, ReqcheckError
+from reqcheck.ingest import load_document
+from reqcheck.limits import Budget, BudgetedLLM, Limits
+from reqcheck.llm import FallbackLLM, build_client
+from reqcheck.llm.cache import DiskCache
+from reqcheck.parallel import default_workers
+from reqcheck.pipeline import run, sidecar_paths, write_atomic
+from reqcheck.recheck import parse_answers, recheck, render_recheck
 from reqcheck.redact import redact
 
 app = typer.Typer(add_completion=False, help="Статическая проверка требований по ISO/IEC/IEEE 29148 и IEEE 830.")
@@ -33,6 +39,7 @@ def main(
     lint_only: Annotated[bool, typer.Option("--lint-only", help="Только правила без LLM.")] = False,
     workers: Annotated[Optional[int], typer.Option("--workers", min=1, max=8, help="Параллельных вызовов LLM (по умолчанию 4 или REQCHECK_WORKERS).")] = None,
     no_fallback: Annotated[bool, typer.Option("--no-fallback", help="Не переключаться на запасной провайдер.")] = False,
+    answers: Annotated[Optional[Path], typer.Option("--answers", help="Файл с ответами аналитика («D-013: ответ»): после проверки перепроверить эти замечания.")] = None,
     version: Annotated[bool, typer.Option("--version", callback=_version, is_eager=True, help="Показать версию.")] = False,
 ) -> None:
     load_env_file()
@@ -40,6 +47,8 @@ def main(
         settings, fallbacks, notes = load_chain(provider, model, fallback=not no_fallback)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    if answers is not None and not answers.is_file():
+        raise typer.BadParameter(f"Файл с ответами не найден: {answers.name}")
     try:
         report = run(input_path, output_path, settings, lint_only=lint_only,
                      require_llm=require_llm, use_cache=not no_cache,
@@ -59,3 +68,30 @@ def main(
     typer.echo(f"Отчёт: {output_path}\nJSON:  {json_path}\nЛог:   {log_path}")
     typer.echo(f"Требований: {len(report.requirements)}, замечаний: {len(report.findings)}. "
                f"{report.verdict.text}")
+    if answers is not None:
+        try:
+            _recheck(input_path, output_path, report, answers, settings, fallbacks, use_cache=not no_cache)
+        except ReqcheckError as exc:
+            typer.secho(f"Ошибка перепроверки: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(exc.exit_code) from exc
+
+
+def _recheck(input_path: Path, output_path: Path, report, answers_path: Path, settings, fallbacks, *, use_cache: bool) -> None:
+    if report.passport.llm_mode != "full":
+        raise MissingKeyError("Перепроверка с ответами требует LLM: отчёт получен в режиме lint-only.")
+    parsed = parse_answers(answers_path.read_text(encoding="utf-8-sig"))
+    if not parsed:
+        typer.secho("В файле ответов нет строк вида «D-013: ответ».", fg=typer.colors.YELLOW, err=True)
+        return
+    limits = Limits.from_env()
+    chain = [build_client(st) for st in (settings, *fallbacks)]
+    client = BudgetedLLM(FallbackLLM(chain) if len(chain) > 1 else chain[0], Budget(limits))
+    doc = load_document(input_path, limits=limits, display_name=str(input_path))
+    result = recheck(report, doc, parsed, client, DiskCache() if use_cache else None, default_workers())
+    base = output_path.with_suffix("")
+    md, js = Path(f"{base}.recheck.md"), Path(f"{base}.recheck.json")
+    write_atomic(js, result.model_dump_json(indent=2))
+    write_atomic(md, render_recheck(result))
+    counts = {s: sum(1 for i in result.items if i.status == s) for s in ("resolved", "partial", "open")}
+    typer.echo(f"Перепроверка: закрыто {counts['resolved']}, частично {counts['partial']}, осталось {counts['open']}.")
+    typer.echo(f"Было:  {result.verdict_before.text}\nСтало: {result.verdict_after.text}\nФайл:  {md}")
