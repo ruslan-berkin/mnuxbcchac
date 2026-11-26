@@ -64,3 +64,16 @@ h3 {
 .flash {
   animation: flash 0.9s ease-out 2;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Маска, из которой поднимаются слова заголовка */
+.mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
