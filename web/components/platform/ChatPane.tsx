@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { recheck, streamChat, type ChatMessage, type RecheckResult, type TopQuestion } from "../api"
+import { recheck, streamChat, type ChatMessage, type RecheckResult, type ReportView } from "../api"
+import AgentReport from "./AgentReport"
 import { SEVERITY, scrollBehavior } from "./meta"
 import RecheckCard from "./RecheckCard"
 import Refs from "./Refs"
@@ -9,7 +10,7 @@ import { load, save } from "./storage"
 
 type Props = {
   runId: string
-  questions: TopQuestion[]
+  data: ReportView
   totalQuestions: number
   result: RecheckResult | null
   onResult: (r: RecheckResult | null) => void
@@ -18,7 +19,8 @@ type Props = {
 
 type Saved = { messages: ChatMessage[]; answers: Record<string, string> }
 
-export default function ChatPane({ runId, questions, totalQuestions, result, onResult, onRef }: Props) {
+export default function ChatPane({ runId, data, totalQuestions, result, onResult, onRef }: Props) {
+  const questions = data.view.top_questions
   const key = `sau-chat:${runId}`
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -103,9 +105,10 @@ export default function ChatPane({ runId, questions, totalQuestions, result, onR
     <div className="flex h-full min-h-0 flex-col">
       <h2 className="border-b border-rule px-4 py-2 text-base font-semibold">Чат с агентом</h2>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
+        <AgentReport data={data} runId={runId} onRef={onRef} />
         <p className="rounded-2xl bg-accent-soft p-3">
-          Я проверил документ. Чтобы его можно было отдавать в разработку, мне нужны ответы на{" "}
-          <b>{totalQuestions}</b> вопросов. Начните с блокирующих:
+          Чтобы документ можно было отдавать в разработку, мне нужны ответы на вопросы (всего <b>{totalQuestions}</b>).
+          Начните с блокирующих:
         </p>
         <ol className="space-y-3">
           {questions.map((q, i) => (

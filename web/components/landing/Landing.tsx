@@ -3,8 +3,7 @@
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { MAX_UPLOAD, createRun, fetchExample, fetchRun, type ReportView, type RunStatus } from "../api"
-import { scrollBehavior } from "../platform/meta"
+import { MAX_UPLOAD, createRun, fetchExample, type ReportView } from "../api"
 import Backdrop from "./Backdrop"
 import Footer from "./Footer"
 import Hero from "./Hero"
@@ -20,7 +19,6 @@ const useIso = typeof window !== "undefined" ? useLayoutEffect : useEffect
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null)
   const [data, setData] = useState<ReportView | null>(null)
-  const [run, setRun] = useState<RunStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -30,18 +28,14 @@ export default function Landing() {
     return () => ctrl.abort()
   }, [])
 
-  const active = run !== null && run.status !== "done" && run.status !== "error"
-
+  // Кнопка «назад» может вернуть страницу из кэша браузера с недоделанной загрузкой.
   useEffect(() => {
-    if (!active || !run) return
-    const timer = window.setTimeout(() => {
-      fetchRun(run.run_id)
-        .then(setRun)
-        .catch((e: Error) => setRun({ ...run, status: "error", error: e.message }))
-    }, 1500)
-    return () => window.clearTimeout(timer)
-  }, [run, active])
+    const reset = () => setUploading(false)
+    window.addEventListener("pageshow", reset)
+    return () => window.removeEventListener("pageshow", reset)
+  }, [])
 
+  // После загрузки сразу открывается платформа: там ход проверки, отчёт и чат с агентом.
   const upload = useCallback(async (file: File) => {
     setError(null)
     if (file.size > MAX_UPLOAD) {
@@ -50,12 +44,10 @@ export default function Landing() {
     }
     setUploading(true)
     try {
-      const { run_id, position } = await createRun(file)
-      setRun({ run_id, name: file.name, status: "queued", stage: null, stages_done: [], position, error: null })
-      document.querySelector("[data-platform]")?.scrollIntoView({ behavior: scrollBehavior(), block: "center" })
+      const { run_id } = await createRun(file)
+      window.location.assign(`/app/?run=${run_id}`)
     } catch (e) {
       setError((e as Error).message)
-    } finally {
       setUploading(false)
     }
   }, [])
@@ -133,19 +125,17 @@ export default function Landing() {
     if (data) ScrollTrigger.refresh()
   }, [data])
 
-  const result = run?.status === "done" ? (run as unknown as ReportView) : null
-
   return (
     <div ref={root}>
       <Backdrop />
       <Nav />
       <main>
-        <Hero busy={uploading || active} error={error} onUpload={upload} />
+        <Hero busy={uploading} error={error} onUpload={upload} />
         <Wave id="wave-top" tone="ink" />
         <Ring />
         <Wave id="wave-bottom" tone="accent" reverse />
-        <Tablet busy={uploading || active} error={error} onUpload={upload} />
-        <PlatformBlock data={data} run={run} result={result} />
+        <Tablet busy={uploading} error={error} onUpload={upload} />
+        <PlatformBlock data={data} />
         <Partners />
       </main>
       <Footer />

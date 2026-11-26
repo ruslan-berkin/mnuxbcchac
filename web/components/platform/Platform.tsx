@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { MAX_UPLOAD, createRun, fetchExample, fetchRun, type Finding, type RecheckResult, type ReportView, type RunStatus, type Severity } from "../api"
 import ChatPane from "./ChatPane"
+import Preview from "../landing/Preview"
 import DocumentPane from "./DocumentPane"
 import FindingCard from "./FindingCard"
 import RequirementsTab from "./RequirementsTab"
@@ -76,6 +77,7 @@ export default function Platform() {
             if (s.status === "done") {
               setProgress(null)
               setData(s as unknown as ReportView)
+              setPane("chat") // на узком экране колонки спрятаны во вкладках: открыть отчёт в чате
             } else if (s.status === "error") {
               setProgress(null)
               setError(s.error ?? "Проверка не удалась.")
@@ -210,12 +212,12 @@ export default function Platform() {
         </p>
       )}
       {running && (
-        <div role="status" className="m-4 rounded-2xl bg-accent-soft p-4">
-          <p className="font-semibold">{status?.name ? `Проверяю «${status.name}»…` : "Загружаю…"}</p>
+        <div className="mx-auto w-full max-w-xl space-y-3 p-4">
+          <div className="rounded-3xl border border-rule bg-accent-soft p-3">
+            {status ? <Preview data={null} run={status} /> : <p role="status" className="p-3">Загружаю…</p>}
+          </div>
           <p className="text-sm text-muted">
-            {status?.status === "queued"
-              ? `Вы в очереди: ${status.position ?? 1}.`
-              : "Обычно это занимает несколько минут. Этапы видны сверху, страницу можно не держать открытой."}
+            Обычно это занимает несколько минут. Отчёт аналитики и чат с агентом откроются здесь сами.
           </p>
         </div>
       )}
@@ -292,7 +294,7 @@ export default function Platform() {
           </section>
 
           <aside aria-label="Чат с агентом" className={`${pane === "chat" ? "flex" : "hidden"} min-h-0 flex-col lg:flex`}>
-            <ChatPane key={runId} runId={runId} questions={data.view.top_questions} totalQuestions={totalQuestions}
+            <ChatPane key={runId} runId={runId} data={data} totalQuestions={totalQuestions}
               result={result} onResult={setResult} onRef={openRef} />
           </aside>
         </main>
