@@ -12,6 +12,7 @@
 
 | Что | Где |
 |---|---|
+| Живой сайт | <https://sau-ai.onrender.com> (бесплатный тариф: после простоя первый ответ может идти около минуты) |
 | Документ организаторов (вход агента, не результат) | [examples/input/requirements.md](examples/input/requirements.md), [PDF](examples/input/requirements.pdf) |
 | Отчёт, сформированный агентом | [reports/report.md](reports/report.md), [JSON](reports/report.json), [журнал прогона](reports/report.log) |
 | Запуск одной командой | `python -m reqcheck examples/input/requirements.pdf reports/report.md` |
