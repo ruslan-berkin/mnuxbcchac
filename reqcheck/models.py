@@ -1,4 +1,4 @@
-"""Модель данных (CLAUDE.md §4)."""
+"""Модель данных."""
 
 from __future__ import annotations
 

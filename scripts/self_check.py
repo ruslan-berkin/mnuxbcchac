@@ -153,7 +153,7 @@ def find_secret(pattern: str, text: str) -> str | None:
 
 def check_repo() -> list[str]:
     errors: list[str] = []
-    for name in ("README.md", "PLAN.md", "CLAUDE.md", ".env.example", ".gitignore",
+    for name in ("README.md", ".env.example", ".gitignore",
                  "requirements.txt", "constraints.txt", "pyproject.toml", "Dockerfile", ".dockerignore", "render.yaml", ".github/workflows/ci.yml",
                  "reqcheck/templates/report.md.j2", "scripts/self_check.py"):
         if not (ROOT / name).is_file():

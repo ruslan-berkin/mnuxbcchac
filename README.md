@@ -113,13 +113,11 @@ ingest → segment → check_each ─┐
 - Секреты вырезаются из логов; если часть проверки не выполнена, вердикт «проверка неполная».
 - Использование из кода: `reqcheck.pipeline.run(...)` с `Limits.web()` и `cache_namespace` на пользователя.
 - Под выданный документ ничего не зашито, тесты идут и на других документах.
-
-Принципы и модель данных: [CLAUDE.md](CLAUDE.md).
 </details>
 
 ## Сайт
 
-Next.js (статический экспорт, `web/`) и FastAPI (`server/`) в одном контейнере, задание: [SITE.md](SITE.md).
+Next.js (статический экспорт, `web/`) и FastAPI (`server/`) в одном контейнере.
 
 ```bash
 docker build -t sau-site . && docker run -p 8000:8000 -e LLM_PROVIDER=openai_compat -e OPENAI_API_KEY=... -e OPENAI_MODEL=... sau-site
@@ -151,4 +149,4 @@ python scripts/self_check.py --report reports/report.md   # отчёт на со
 - PDF должен иметь текстовый слой: сканы отклоняются.
 - На сайте результаты хранятся не дольше 2 часов и пропадают при перезапуске сервера.
 
-Референс дизайна в `design/`: шаблон «Teal Treasury Landing» (MIT, Kedhareswer Naidu).
+Дизайн сайта вдохновлён шаблоном «Teal Treasury Landing» (MIT, Kedhareswer Naidu).
