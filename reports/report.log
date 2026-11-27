@@ -1,121 +1,77 @@
-2026-11-26 02:27:11,747 INFO reqcheck.pipeline: Документ: requirements.pdf (pdf, 142 строк, 73 блоков)
-2026-11-26 02:27:11,747 INFO reqcheck.pipeline: Режим: full
-2026-11-26 02:27:11,747 INFO reqcheck.pipeline: LLM: openai_compat / gpt-6.2-sol, кэш вкл, потоков 4
-2026-11-26 02:27:11,750 INFO reqcheck.llm: LLM вызов: SegOut, промпт 13743 симв.
-2026-11-26 02:27:52,542 INFO reqcheck.llm: LLM ответ: SegOut за 41 с, 11503 симв.
-2026-11-26 02:27:52,557 INFO reqcheck.segment: segment: явных 4, от LLM 50, итого 54, отброшено по цитате 0
-2026-11-26 02:27:52,557 INFO reqcheck.pipeline: segment: требований 54
-2026-11-26 02:27:52,561 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7101 симв.
-2026-11-26 02:27:52,565 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7242 симв.
-2026-11-26 02:27:52,568 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7096 симв.
-2026-11-26 02:27:52,570 INFO reqcheck.llm: LLM вызов: EachOut, промпт 8301 симв.
-2026-11-26 02:27:59,507 INFO reqcheck.llm: LLM ответ: EachOut за 7 с, 1671 симв.
-2026-11-26 02:27:59,516 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7321 симв.
-2026-11-26 02:28:00,279 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 1491 симв.
-2026-11-26 02:28:00,283 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7061 симв.
-2026-11-26 02:28:02,546 INFO reqcheck.llm: LLM ответ: EachOut за 10 с, 2198 симв.
-2026-11-26 02:28:02,552 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7122 симв.
-2026-11-26 02:28:06,298 INFO reqcheck.llm: LLM ответ: EachOut за 6 с, 904 симв.
-2026-11-26 02:28:06,306 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7287 симв.
-2026-11-26 02:28:12,388 INFO reqcheck.llm: LLM ответ: EachOut за 10 с, 2231 симв.
-2026-11-26 02:28:12,398 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7572 симв.
-2026-11-26 02:28:12,403 INFO reqcheck.llm: LLM ответ: EachOut за 20 с, 3818 симв.
-2026-11-26 02:28:12,407 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7685 симв.
-2026-11-26 02:28:17,211 INFO reqcheck.llm: LLM ответ: EachOut за 11 с, 2015 симв.
-2026-11-26 02:28:17,218 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7479 симв.
-2026-11-26 02:28:18,014 INFO reqcheck.llm: LLM ответ: EachOut за 18 с, 3739 симв.
-2026-11-26 02:28:18,019 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7431 симв.
-2026-11-26 02:28:21,989 INFO reqcheck.llm: LLM ответ: EachOut за 5 с, 738 симв.
-2026-11-26 02:28:21,995 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7209 симв.
-2026-11-26 02:28:23,197 INFO reqcheck.llm: LLM ответ: EachOut за 11 с, 1719 симв.
-2026-11-26 02:28:23,203 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7033 симв.
-2026-11-26 02:28:24,427 INFO reqcheck.llm: LLM ответ: EachOut за 12 с, 2279 симв.
-2026-11-26 02:28:24,432 INFO reqcheck.llm: LLM вызов: EachOut, промпт 6909 симв.
-2026-11-26 02:28:25,826 INFO reqcheck.llm: LLM ответ: EachOut за 1 с, 15 симв.
-2026-11-26 02:28:25,830 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7446 симв.
-2026-11-26 02:28:27,227 INFO reqcheck.llm: LLM ответ: EachOut за 4 с, 837 симв.
-2026-11-26 02:28:27,235 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7007 симв.
-2026-11-26 02:28:32,879 INFO reqcheck.llm: LLM ответ: EachOut за 6 с, 1206 симв.
-2026-11-26 02:28:32,885 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7555 симв.
-2026-11-26 02:28:33,904 INFO reqcheck.llm: LLM ответ: EachOut за 12 с, 2096 симв.
-2026-11-26 02:28:33,915 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7288 симв.
-2026-11-26 02:28:36,166 INFO reqcheck.llm: LLM ответ: EachOut за 18 с, 4571 симв.
-2026-11-26 02:28:36,173 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7101 симв.
-2026-11-26 02:28:36,839 INFO reqcheck.llm: LLM ответ: EachOut за 11 с, 2159 симв.
-2026-11-26 02:28:36,846 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7463 симв.
-2026-11-26 02:28:42,072 INFO reqcheck.llm: LLM ответ: EachOut за 6 с, 1275 симв.
-2026-11-26 02:28:42,073 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 1417 симв.
-2026-11-26 02:28:42,081 INFO reqcheck.llm: LLM вызов: EachOut, промпт 7070 симв.
-2026-11-26 02:28:45,271 INFO reqcheck.llm: LLM ответ: EachOut за 12 с, 2263 симв.
-2026-11-26 02:28:48,498 INFO reqcheck.llm: LLM ответ: EachOut за 12 с, 2285 симв.
-2026-11-26 02:28:50,494 INFO reqcheck.llm: LLM ответ: EachOut за 8 с, 771 симв.
-2026-11-26 02:28:50,500 INFO reqcheck.pipeline: check_each: замечаний 57, не проверено 0, отброшено по ID/критерию 0
-2026-11-26 02:28:50,511 INFO reqcheck.llm: LLM вызов: SetOut, промпт 19325 симв.
-2026-11-26 02:28:50,513 INFO reqcheck.llm: LLM вызов: SetOut, промпт 19306 симв.
-2026-11-26 02:28:50,516 INFO reqcheck.llm: LLM вызов: SetOut, промпт 19506 симв.
-2026-11-26 02:29:27,845 INFO reqcheck.llm: LLM ответ: SetOut за 37 с, 7947 симв.
-2026-11-26 02:29:27,850 INFO reqcheck.set: check_set[rules]: замечаний 8
-2026-11-26 02:29:30,646 INFO reqcheck.llm: LLM ответ: SetOut за 40 с, 10647 симв.
-2026-11-26 02:29:30,655 INFO reqcheck.set: check_set[acceptance]: замечаний 12
-2026-11-26 02:29:56,542 INFO reqcheck.llm: LLM ответ: SetOut за 66 с, 16918 симв.
-2026-11-26 02:29:56,548 INFO reqcheck.set: check_set[interfaces]: замечаний 17
-2026-11-26 02:29:56,557 INFO reqcheck.llm: LLM вызов: SetOut, промпт 25159 симв.
-2026-11-26 02:30:32,590 INFO reqcheck.llm: LLM ответ: SetOut за 36 с, 8019 симв.
-2026-11-26 02:30:32,596 INFO reqcheck.set: check_set[quality]: замечаний 7
-2026-11-26 02:30:32,597 INFO reqcheck.pipeline: check_set: замечаний 44
-2026-11-26 02:30:32,620 INFO reqcheck.pipeline: lint: замечаний 13, упало правил 0, обрезано правил 0
-2026-11-26 02:30:32,634 INFO reqcheck.pipeline: ground: отброшено 0 (замечаний 0, требований 0)
-2026-11-26 02:30:32,646 INFO reqcheck.llm: LLM вызов: ConsolidateOut, промпт 33338 симв.
-2026-11-26 02:31:01,129 INFO reqcheck.llm: LLM ответ: ConsolidateOut за 28 с, 666 симв.
-2026-11-26 02:31:01,136 INFO reqcheck.consolidate: consolidate: ['D-001', 'D-047'] слиты в D-048
-2026-11-26 02:31:01,136 WARNING reqcheck.consolidate: consolidate: группа ['D-012', 'D-046'] отклонена: нет видимой связи с D-012
-2026-11-26 02:31:01,137 INFO reqcheck.consolidate: consolidate: ['D-020'] слиты в D-024
-2026-11-26 02:31:01,137 INFO reqcheck.consolidate: consolidate: ['D-027', 'D-067'] слиты в D-028
-2026-11-26 02:31:01,137 INFO reqcheck.consolidate: consolidate: ['D-043'] слиты в D-044
-2026-11-26 02:31:01,138 WARNING reqcheck.consolidate: consolidate: группа ['D-051', 'D-052', 'D-068'] отклонена: нет видимой связи с D-051
-2026-11-26 02:31:01,138 WARNING reqcheck.consolidate: consolidate: группа ['D-054', 'D-060', 'D-069'] отклонена: нет видимой связи с D-060
-2026-11-26 02:31:01,138 INFO reqcheck.consolidate: consolidate: ['D-055', 'D-056'] слиты в D-057
-2026-11-26 02:31:01,138 WARNING reqcheck.consolidate: consolidate: группа ['D-061', 'D-065', 'D-087'] отклонена: нет видимой связи с D-065
-2026-11-26 02:31:01,138 INFO reqcheck.consolidate: consolidate: ['D-075', 'D-076'] слиты в D-074
-2026-11-26 02:31:01,139 INFO reqcheck.consolidate: consolidate: ['D-079'] слиты в D-084
-2026-11-26 02:31:01,153 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13481 симв.
-2026-11-26 02:31:01,158 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13384 симв.
-2026-11-26 02:31:01,158 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13321 симв.
-2026-11-26 02:31:01,161 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13651 симв.
-2026-11-26 02:31:04,333 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 483 симв.
-2026-11-26 02:31:04,340 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13631 симв.
-2026-11-26 02:31:05,869 INFO reqcheck.llm: LLM ответ: VerifyOut за 5 с, 425 симв.
-2026-11-26 02:31:05,876 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13486 симв.
-2026-11-26 02:31:05,968 INFO reqcheck.llm: LLM ответ: VerifyOut за 5 с, 451 симв.
-2026-11-26 02:31:05,976 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13454 симв.
-2026-11-26 02:31:07,553 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 543 симв.
-2026-11-26 02:31:07,558 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13392 симв.
-2026-11-26 02:31:09,145 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 365 симв.
-2026-11-26 02:31:09,152 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13295 симв.
-2026-11-26 02:31:09,924 INFO reqcheck.llm: LLM ответ: VerifyOut за 9 с, 436 симв.
-2026-11-26 02:31:09,930 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13392 симв.
-2026-11-26 02:31:10,792 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 475 симв.
-2026-11-26 02:31:10,800 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13234 симв.
-2026-11-26 02:31:12,019 INFO reqcheck.llm: LLM ответ: VerifyOut за 6 с, 384 симв.
-2026-11-26 02:31:12,023 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13187 симв.
-2026-11-26 02:31:13,243 INFO reqcheck.llm: LLM ответ: VerifyOut за 2 с, 304 симв.
-2026-11-26 02:31:13,244 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 371 симв.
-2026-11-26 02:31:13,251 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13213 симв.
-2026-11-26 02:31:13,252 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13191 симв.
-2026-11-26 02:31:14,677 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 274 симв.
-2026-11-26 02:31:14,683 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13518 симв.
-2026-11-26 02:31:16,286 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 406 симв.
-2026-11-26 02:31:16,295 INFO reqcheck.llm: LLM вызов: VerifyOut, промпт 13134 симв.
-2026-11-26 02:31:16,828 INFO reqcheck.llm: LLM ответ: VerifyOut за 8 с, 366 симв.
-2026-11-26 02:31:17,267 INFO reqcheck.llm: LLM ответ: VerifyOut за 3 с, 438 симв.
-2026-11-26 02:31:17,343 INFO reqcheck.llm: LLM ответ: VerifyOut за 4 с, 453 симв.
-2026-11-26 02:31:20,206 INFO reqcheck.llm: LLM ответ: VerifyOut за 4 с, 341 симв.
-2026-11-26 02:31:20,211 WARNING reqcheck.verify: verify: снято D-004 (CMP): Цитата показывает только направление связи, но раздел интеграции прямо называет две операции: чтение и сохранение настроек. Для сохранения интерфейс предусматривает кнопку «Сохранить», а часть B описывает запрос и ответ. Для чтения действительно не описаны отдельный вызов и момент его выполнения, но
-2026-11-26 02:31:20,211 WARNING reqcheck.verify: verify: снято D-005 (CMP): Цитата верна, но описывает только архитектурную цепочку: Sequence Diagram указывает событие «проведена покупка», а Ф-2 и Ф-3 задают правила учёта операций и условие отправки push при переходе через порог. Критерии приёмки уже содержат конкретный сквозной сценарий: покупка на 1 500 ₸ при расходах 48 
-2026-11-26 02:31:20,211 WARNING reqcheck.verify: verify: снято D-028 (CMP): Ф-2 определяет расчётный период и состав расходов: месяц определяется по дате совершения покупки в Алматы, учитываются проведённые покупки и возвраты, а переводы и снятие наличных исключаются. Ф-3 задаёт условие отправки push: порог сравнивается с накопленными расходами по карте, а не с суммой отдел
-2026-11-26 02:31:20,211 INFO reqcheck.verify: verify: D-046 понижено critical → minor: В строке Description действительно указаны и сохранение, и чтение порога. Однако шаг 4 логики метода прямо требует заменить настройку и вернуть результат сохранения, а особые правила подтверждают заме
-2026-11-26 02:31:20,212 WARNING reqcheck.verify: verify: снято D-052 (CMP): В части B указана необходимая авторизация: Bearer, сессия владельца карты. Для запроса без необходимой авторизации прямо задан ответ 401 с сообщением «Требуется вход», поэтому ожидаемый результат для запроса без действующей сессии определён.
-2026-11-26 02:31:20,212 WARNING reqcheck.verify: verify: снято D-053 (CMP): В разделе «Статусы» прямо указано, что для чужой карты возвращается 404 с сообщением «Карта не найдена». Это неуспешный исход проверки, а не переход к замене настройки и возврату результата успешного сохранения.
-2026-11-26 02:31:20,212 WARNING reqcheck.verify: verify: снято D-054 (CMP): Шаг 3 не повторяет правила проверки, но таблица параметров запроса и особые правила части B вместе задают их однозначно: amount — целое число в тенге от 1 000 до 1 000 000 включительно. Шаг 5 предписывает вернуть прежнее состояние и результат ERROR при отклонении суммы, поэтому допустимые и недопуст
-2026-11-26 02:31:20,212 WARNING reqcheck.verify: verify: снято D-055 (CMP): Пункт 4 сам по себе не раскрывает «результат сохранения», но раздел «Статусы» задаёт для успешного выполнения HTTP 200 с примером тела, содержащего result: OK, а для внутренней ошибки сервера, к которой относится сбой записи после проверок, — HTTP 500 с телом {"message":"Ошибка сервиса"}. Пример с r
-2026-11-26 02:31:20,268 INFO reqcheck.pipeline: Отчёт записан: reports/report.md
+2026-11-27 05:41:47,996 INFO reqcheck.pipeline: Документ: requirements.pdf (pdf, 141 строк, 73 блоков)
+2026-11-27 05:41:47,997 INFO reqcheck.pipeline: Режим: full
+2026-11-27 05:41:47,997 INFO reqcheck.pipeline: LLM: openai_compat / gpt-6.2-sol, кэш вкл, потоков 4
+2026-11-27 05:41:48,002 INFO reqcheck.llm: LLM cache hit 87f13b8f6606 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,007 INFO reqcheck.segment: segment: явных 4, от LLM 51, итого 55, отброшено по цитате 0
+2026-11-27 05:41:48,008 INFO reqcheck.pipeline: segment: требований 55
+2026-11-27 05:41:48,011 INFO reqcheck.llm: LLM cache hit 830b1d3c0f43 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,012 INFO reqcheck.llm: LLM cache hit df338d08a3f6 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,012 INFO reqcheck.llm: LLM cache hit 56959d29b86b (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,013 INFO reqcheck.llm: LLM cache hit 7d7463ea5811 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,014 INFO reqcheck.llm: LLM cache hit 4064748ff658 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,015 INFO reqcheck.llm: LLM cache hit 475406c783c5 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,015 INFO reqcheck.llm: LLM cache hit 2dfb58c17b7b (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,016 INFO reqcheck.llm: LLM cache hit 095aa4d4a2fb (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,016 INFO reqcheck.llm: LLM cache hit a9d92e28ed86 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,016 INFO reqcheck.llm: LLM cache hit 51b6b6393b61 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,017 INFO reqcheck.llm: LLM cache hit c9b0a68e01b8 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,019 INFO reqcheck.llm: LLM cache hit aefe9d252f6c (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,022 INFO reqcheck.llm: LLM cache hit a2cadabde513 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,023 INFO reqcheck.llm: LLM cache hit 829d90263bb9 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,025 INFO reqcheck.llm: LLM cache hit c836c5a4440b (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,025 INFO reqcheck.llm: LLM cache hit 44a68f4f79b7 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,026 INFO reqcheck.llm: LLM cache hit 1f4fa3d91f97 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,027 INFO reqcheck.llm: LLM cache hit 97f1e2f46455 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,029 INFO reqcheck.llm: LLM cache hit 7fbd4ab14dd6 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,029 INFO reqcheck.llm: LLM cache hit a6f643b5d984 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,030 INFO reqcheck.llm: LLM cache hit a3a236d7b0b0 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,030 INFO reqcheck.llm: LLM cache hit eadf76ecc4ef (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,030 INFO reqcheck.llm: LLM cache hit 524bcdfe205e (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,031 INFO reqcheck.pipeline: check_each: замечаний 59, не проверено 0, отброшено по ID/критерию 0
+2026-11-27 05:41:48,048 INFO reqcheck.llm: LLM cache hit c53f06ab2f15 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,049 INFO reqcheck.llm: LLM cache hit c582fdfdcf6b (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,049 INFO reqcheck.set: check_set[acceptance]: замечаний 11
+2026-11-27 05:41:48,049 INFO reqcheck.set: check_set[rules]: замечаний 7
+2026-11-27 05:41:48,050 INFO reqcheck.llm: LLM cache hit 3ad2d080b427 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,050 INFO reqcheck.set: check_set[interfaces]: замечаний 13
+2026-11-27 05:41:48,052 INFO reqcheck.llm: LLM cache hit e18c0562140a (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,052 INFO reqcheck.set: check_set[quality]: замечаний 8
+2026-11-27 05:41:48,052 INFO reqcheck.pipeline: check_set: замечаний 39
+2026-11-27 05:41:48,067 INFO reqcheck.pipeline: lint: замечаний 14, упало правил 0, обрезано правил 0
+2026-11-27 05:41:48,070 WARNING reqcheck.ground: ground: отброшено замечание (llm, CMP, R-51): цитата не найдена в документе: 'или'
+2026-11-27 05:41:48,075 WARNING reqcheck.ground: ground: отброшено замечание (llm, S-TRC, набор): цитата не найдена в документе: '|  |  |  |'
+2026-11-27 05:41:48,076 INFO reqcheck.pipeline: ground: отброшено 2 (замечаний 2, требований 0)
+2026-11-27 05:41:48,081 INFO reqcheck.llm: LLM cache hit 8c1c3cbaa46c (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,081 INFO reqcheck.consolidate: consolidate: ['D-001', 'D-045'] слиты в D-046
+2026-11-27 05:41:48,081 WARNING reqcheck.consolidate: consolidate: группа ['D-012', 'D-043'] отклонена: нет видимой связи с D-012
+2026-11-27 05:41:48,081 INFO reqcheck.consolidate: consolidate: ['D-018'] слиты в D-023
+2026-11-27 05:41:48,081 WARNING reqcheck.consolidate: consolidate: группа ['D-026', 'D-069'] отклонена: нет видимой связи с D-026
+2026-11-27 05:41:48,081 INFO reqcheck.consolidate: consolidate: ['D-040'] слиты в D-041
+2026-11-27 05:41:48,081 INFO reqcheck.consolidate: consolidate: ['D-047'] слиты в D-048
+2026-11-27 05:41:48,081 INFO reqcheck.consolidate: consolidate: ['D-051', 'D-057'] слиты в D-050
+2026-11-27 05:41:48,082 WARNING reqcheck.consolidate: consolidate: группа ['D-053', 'D-061'] отклонена: нет видимой связи с D-053
+2026-11-27 05:41:48,082 INFO reqcheck.consolidate: consolidate: ['D-055', 'D-056'] слиты в D-054
+2026-11-27 05:41:48,082 INFO reqcheck.consolidate: consolidate: ['D-062'] слиты в D-067
+2026-11-27 05:41:48,082 INFO reqcheck.consolidate: consolidate: ['D-075'] слиты в D-076
+2026-11-27 05:41:48,086 INFO reqcheck.llm: LLM cache hit 39edf0891c9f (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,086 INFO reqcheck.llm: LLM cache hit b71028d5f349 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,087 INFO reqcheck.llm: LLM cache hit 37ef5730c296 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,087 INFO reqcheck.llm: LLM cache hit 33cec44dd690 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,088 INFO reqcheck.llm: LLM cache hit c4ef5dc11db6 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,090 INFO reqcheck.llm: LLM cache hit fc3d6c43ff75 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,090 INFO reqcheck.llm: LLM cache hit f3ef425486af (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,090 INFO reqcheck.llm: LLM cache hit 55d74095dda9 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,090 INFO reqcheck.llm: LLM cache hit 5a5e1f6d216a (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,092 INFO reqcheck.llm: LLM cache hit 4f91e51613b5 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,092 INFO reqcheck.llm: LLM cache hit 6152c0710436 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,092 INFO reqcheck.llm: LLM cache hit 5094f0698030 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,092 INFO reqcheck.llm: LLM cache hit 8f53ac46ec96 (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,092 INFO reqcheck.llm: LLM cache hit e44530194c0e (openai_compat/gpt-6.2-sol)
+2026-11-27 05:41:48,093 WARNING reqcheck.verify: verify: снято D-005 (CMP): Стрелка в разделе архитектуры показывает связь компонентов, а операции чтения и сохранения названы в разделе интеграции. Часть B задаёт параметры запроса и ожидаемый результат успешного сохранения, поэтому отсутствие этих деталей у стрелки не мешает написать тест на успешное сохранение. Отдельный ко
+2026-11-27 05:41:48,093 WARNING reqcheck.verify: verify: снято D-006 (CMP): Цитата верна, но в Sequence Diagram указано входное событие «проведена покупка» и данные для push: последние четыре цифры карты и сумма. Ф-3 задаёт условие отправки — переход от суммы ниже порога к сумме не ниже порога, а первый критерий приёмки прямо задаёт покупку на 1 500 ₸ при расходах 48 500 ₸ 
+2026-11-27 05:41:48,093 WARNING reqcheck.verify: verify: снято D-027 (CMP): Ф-2 задаёт период накопления и правила расчёта расходов по карте, а Ф-3 прямо указывает, что с порогом сравниваются накопленные расходы. Критерий приёмки это подтверждает: покупка на 1 500 ₸ при расходах 48 500 ₸ доводит итог до порога 50 000 ₸ и вызывает push, хотя сама покупка меньше порога.
+2026-11-27 05:41:48,093 WARNING reqcheck.verify: verify: снято D-045 (VER): В строке Description действительно упомянуты и сохранение, и чтение, но логика метода явно задаёт ожидаемое поведение: при успехе заменить настройку и вернуть результат сохранения, а при отклонении суммы вернуть прежнее состояние и ERROR. Слово «чтение» в описании не согласуется с этой логикой, одна
+2026-11-27 05:41:48,093 INFO reqcheck.verify: verify: D-046 понижено critical → major: В части B для GET явно предписана замена сохранённой настройки, и правило о повторном сохранении это подтверждает. Изменение состояния по запросу клиента противоречит семантике GET и может привести к 
+2026-11-27 05:41:48,093 WARNING reqcheck.verify: verify: снято D-057 (CMP): В таблице query-параметров части B поле amount указано как целочисленный порог в тенге с диапазоном от 1 000 до 1 000 000. Особые правила уточняют, что обе границы включены, а Ф-1 подтверждает тот же диапазон, поэтому данных достаточно для реализации проверки и тестов на границах.
+2026-11-27 05:41:48,093 WARNING reqcheck.verify: verify: снято D-060 (CMP): Схема действительно показывает только маршрут взаимодействия, но соседние разделы для операции сохранения задают запрос к /alerts/saveLimit, замену настройки и варианты ответа, включая 500 при внутренней ошибке. Поэтому отсутствие этих деталей на самой схеме не подтверждает заявленный пробел: интегр
+2026-11-27 05:41:48,128 INFO reqcheck.pipeline: Отчёт записан: reports/report.md
