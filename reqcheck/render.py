@@ -98,7 +98,7 @@ def render_report(report: Report) -> str:
         crit = CRITERIA[code]
         stored = report.set_conclusions.get(code)
         if stored and items and not stored.startswith("Не проверено"):
-            conclusion = f"Вывод модели: {stored} Всего замечаний по критерию: {len(items)}."
+            conclusion = f"{stored} Всего замечаний по критерию: {len(items)}."
         elif stored:
             conclusion = stored
         elif items:
