@@ -11,12 +11,12 @@ export default function Hero({ busy, error, onUpload }: Props) {
           <span className="mask"><span data-word className="wordmark inline-block px-1">sau.ai</span></span>
         </span>
         <span className="mt-2 block text-xl font-medium tracking-tight md:text-2xl">
-          <Words text="ИИ-агент, который проверяет ТЗ до разработки" />
+          <Words text="Находит дыры в ТЗ раньше, чем они станут багами" />
         </span>
       </h1>
       <p className="mt-4 max-w-xl text-base text-muted">
-        Читает документ требований, проверяет каждое требование и весь набор по ISO/IEC/IEEE 29148 и IEEE 830,
-        задаёт уточняющие вопросы и не выдумывает цитаты.
+        ИИ-агент проверяет каждое требование и весь набор по ISO/IEC/IEEE 29148 и IEEE 830, показывает цитату к
+        каждому замечанию и задаёт вопросы аналитику.
       </p>
       <Upload busy={busy} onUpload={onUpload}
         className="shine mt-7 w-full rounded-full bg-accent px-10 py-5 text-lg font-semibold text-white shadow-[0_22px_44px_-18px_var(--accent)] transition hover:bg-accent-deep disabled:opacity-60 sm:w-auto" />
