@@ -95,6 +95,18 @@ def test_no_key_means_no_live_runs(client, monkeypatch):
     assert upload(client).status_code == 503
 
 
+def test_provider_failure_is_not_shown_to_visitors(client, monkeypatch):
+    from reqcheck.errors import LLMUnavailableError
+
+    def fail(*args, **kwargs):
+        raise LLMUnavailableError("Error code: 429 - You have no credits remaining. https://platform.example/billing")
+
+    monkeypatch.setattr("server.jobs.run", fail)
+    body = wait_done(client, upload(client).json()["run_id"])
+    assert body["status"] == "error" and "Модель сейчас недоступна" in body["error"]
+    assert "credits" not in body["error"] and "429" not in body["error"]
+
+
 def test_broken_document_ends_with_clean_error(client, manager):
     r = upload(client, content=b"%PDF-1.7 broken", name="x.pdf")
     body = wait_done(client, r.json()["run_id"])

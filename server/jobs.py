@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from reqcheck.config import Settings
-from reqcheck.errors import ReqcheckError
+from reqcheck.errors import LLMUnavailableError, ReqcheckError
 from reqcheck.ingest import load_document, safe_display_name
 from reqcheck.limits import Limits
 from reqcheck.models import Document, Report
@@ -152,6 +152,11 @@ class JobManager:
             job.stages_done = list(dict.fromkeys([*job.stages_done, job.stage or "render"]))
             job.stage = None
             job.status = "done"
+        except LLMUnavailableError as exc:
+            # текст провайдера (баланс, лимиты ключа) посетителю не показываем, только в журнал
+            log.warning("прогон %s: модель недоступна: %s", job.id, exc)
+            job.error, job.status = ("Модель сейчас недоступна, поэтому проверка не завершена. "
+                                     "Попробуйте позже или откройте готовый пример."), "error"
         except ReqcheckError as exc:  # сообщения ядра без секретов и серверных путей
             log.warning("прогон %s: %s", job.id, type(exc).__name__)
             # в сообщении ядра фигурирует наше имя файла на диске: показываем имя пользователя
