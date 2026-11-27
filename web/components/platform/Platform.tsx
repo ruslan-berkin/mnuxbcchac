@@ -256,6 +256,15 @@ export default function Platform() {
   ]
   const select = "rounded-lg border border-rule bg-page px-2 py-1.5"
 
+  const moveTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key]
+    if (!step) return
+    e.preventDefault()
+    const next = tabs[(tabs.findIndex(([key]) => key === tab) + step + tabs.length) % tabs.length][0]
+    setTab(next)
+    document.getElementById(`tab-${next}`)?.focus()
+  }
+
   return (
     <div className="flex h-dvh flex-col bg-[#f4f7f5]">
       <TopBar report={current?.report ?? null} rechecked={result !== null} title={data?.document.title ?? status?.name ?? null} runId={runId}
@@ -292,9 +301,10 @@ export default function Platform() {
 
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-1 lg:grid-cols-[minmax(0,1fr)_360px]">
             <main className={`${chatOpen ? "hidden" : "flex"} min-h-0 min-w-0 flex-col lg:flex`}>
-              <div role="tablist" aria-label="Разделы отчёта" className="flex gap-1 overflow-x-auto border-b border-rule bg-page px-3 pt-2 text-sm">
+              <div role="tablist" aria-label="Разделы отчёта" onKeyDown={moveTab} className="flex gap-1 overflow-x-auto border-b border-rule bg-page px-3 pt-2 text-sm">
                 {tabs.map(([key, label, n]) => (
-                  <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+                  <button key={key} id={`tab-${key}`} type="button" role="tab" aria-selected={tab === key} aria-controls="tabpanel"
+                    tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)}
                     className={`flex items-center gap-2 whitespace-nowrap rounded-t-xl border-b-[3px] px-4 py-2.5 ${
                       tab === key ? "border-accent bg-accent-soft font-semibold" : "border-transparent text-muted hover:text-ink"}`}>
                     {label}
@@ -312,7 +322,7 @@ export default function Platform() {
                 ))}
               </div>
 
-              <div className="min-h-0 flex-1">
+              <div id="tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-h-0 flex-1">
                 {tab === "report" && (
                   <div className="h-full overflow-y-auto">
                     {result && <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6"><RecheckCard result={result} onRef={openRef} /></div>}

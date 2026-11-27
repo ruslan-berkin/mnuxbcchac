@@ -256,6 +256,11 @@ html {
   margin-inline: auto;
   width: min(100%, 1180px, calc((100svh - 110px) * 1.77));
   aspect-ratio: 1280 / 720;
+  container-type: inline-size;
+}
+.tablet-button {
+  font-size: clamp(14px, 2.03cqw, 24px);
+  padding: clamp(10px, 1.7cqw, 20px) clamp(14px, 3.4cqw, 40px);
 }
 .stage {
   perspective: 1800px;

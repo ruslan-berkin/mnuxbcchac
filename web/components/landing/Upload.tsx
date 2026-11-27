@@ -4,6 +4,9 @@
 import { useRef } from "react"
 import { ACCEPTED } from "../api"
 
+export const PRIVACY =
+  "Текст документа отправляется во внешнюю модель (OpenAI) и хранится на сервере до 2 часов. Не загружайте конфиденциальные документы."
+
 type Props = { busy: boolean; className: string; onUpload: (file: File) => void }
 
 export default function Upload({ busy, className, onUpload }: Props) {

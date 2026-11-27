@@ -145,3 +145,23 @@ def test_health_not_live_without_key(client, monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "openai_compat")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert client.get("/api/health").json()["live"] is False
+
+
+def test_oversized_api_body_is_rejected(client):
+    body = '{"run_id":"example","answers":{"D-001":"' + "a" * (600 * 1024) + '"}}'
+    r = client.post("/api/recheck", content=body, headers={"x-sau": "1", "content-type": "application/json"})
+    assert r.status_code == 413 and r.json()["detail"] == "Слишком большой запрос."
+
+
+def test_responses_are_compressed_and_cached_by_kind(client):
+    r = client.get("/api/example", headers={"accept-encoding": "gzip"})
+    assert r.headers["content-encoding"] == "gzip" and r.headers["cache-control"] == "no-store"
+    assert client.get("/").headers["cache-control"] == "no-cache"
+    assert "max-age=31536000" in client.get("/").headers["strict-transport-security"]
+
+
+def test_csp_allows_only_hashed_inline_scripts(web_dir):
+    (web_dir / "index.html").write_text('<script>self.a=1</script><script src="/x.js"></script>', encoding="utf-8")
+    csp = TestClient(create_app(web_dir)).get("/").headers["content-security-policy"]
+    script = next(part for part in csp.split(";") if part.strip().startswith("script-src"))
+    assert "unsafe-inline" not in script and script.count("sha256-") == 1

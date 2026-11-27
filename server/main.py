@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import logging
 import os
@@ -11,9 +13,10 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.middleware.gzip import GZipMiddleware
 
 from reqcheck import __version__
 from reqcheck.chat import ChatMessage, chat_reply
@@ -42,17 +45,81 @@ RUN_ID = re.compile(r"^[0-9a-f]{32}$")
 # Заголовок, который чужой сайт не может поставить без preflight: защита платных POST от межсайтовых форм.
 CSRF_HEADER = "x-sau"
 
-# Next кладёт инлайн-скрипты гидратации в статический HTML, поэтому 'unsafe-inline' для script-src.
 SECURITY_HEADERS = {
-    "Content-Security-Policy": (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
-        "form-action 'self'; frame-ancestors 'none'"
-    ),
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "same-origin",
+    "Strict-Transport-Security": "max-age=31536000",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 }
+QUOTED_SELF = "'self'"
+INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.DOTALL)
+# тело запроса к API: переписка и ответы укладываются в полмегабайта, файл проверяется отдельно
+MAX_JSON_BYTES = 512 * 1024
+
+
+@lru_cache(maxsize=4)
+def _csp(web_dir: Path, built: int) -> str:
+    """Next кладёт инлайн-скрипты гидратации в HTML: разрешаем ровно их по хешам, а не любые."""
+    hashes = sorted({
+        "'sha256-" + base64.b64encode(hashlib.sha256(code).digest()).decode() + "'"
+        for page in web_dir.rglob("*.html") for code in INLINE_SCRIPT.findall(page.read_bytes()) if code
+    })
+    return (
+        f"default-src 'self'; script-src {' '.join([QUOTED_SELF, *hashes])}; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+        "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    )
+
+
+def content_security_policy(web_dir: Path) -> str:
+    index = web_dir / "index.html"
+    # новая сборка меняет скрипты: ключ кэша — время сборки
+    return _csp(web_dir, index.stat().st_mtime_ns if index.is_file() else 0)
+
+
+def cache_control(path: str) -> str:
+    if path.startswith("/api/"):
+        return "no-store"
+    if path.startswith("/_next/static/"):
+        return "public, max-age=31536000, immutable"  # имена файлов содержат хеш содержимого
+    if path.startswith("/logos/"):
+        return "public, max-age=86400"
+    return "no-cache"
+
+
+class BodyLimit:
+    """Обрывает слишком большое тело запроса к API, не складывая его в память целиком."""
+
+    def __init__(self, app, upload_bytes) -> None:
+        self.app = app
+        self.upload_bytes = upload_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not scope["path"].startswith("/api/") or scope["method"] != "POST":
+            return await self.app(scope, receive, send)
+        # у загрузки файла запас на обёртку multipart; сам файл проверяет обработчик
+        limit = self.upload_bytes() + 64 * 1024 if scope["path"] == "/api/runs" else MAX_JSON_BYTES
+        body, more = bytearray(), True
+        while more:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return None
+            body += message.get("body", b"")
+            more = message.get("more_body", False)
+            if len(body) > limit:
+                text = "Файл слишком большой." if scope["path"] == "/api/runs" else "Слишком большой запрос."
+                return await JSONResponse({"detail": text}, status_code=413)(scope, receive, send)
+        sent = False
+
+        async def replay():
+            nonlocal sent
+            if sent:
+                return await receive()
+            sent = True
+            return {"type": "http.request", "body": bytes(body), "more_body": False}
+
+        return await self.app(scope, replay, send)
 
 
 def live_enabled() -> bool:
@@ -122,7 +189,13 @@ def create_app(web_dir: Path | None = None, jobs: JobManager | None = None, limi
         response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
+        response.headers.setdefault("Content-Security-Policy", content_security_policy(web_dir or WEB_DIR))
+        response.headers.setdefault("Cache-Control", cache_control(request.url.path))
         return response
+
+    app.add_middleware(BodyLimit, upload_bytes=max_upload_bytes)
+    # поток чата (text/event-stream) сжатие пропускает, ответы не задерживаются
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     def require_same_site(request: Request) -> None:
         if request.headers.get(CSRF_HEADER) != "1":

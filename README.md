@@ -189,7 +189,7 @@ docker run -p 8000:8000 -e LLM_PROVIDER=openai_compat -e OPENAI_API_KEY=... -e O
 ```
 
 Без ключа работают лендинг и пример; живые прогоны, чат и перепроверка требуют ключа. Лимиты платного ключа
-задаются переменными: `SITE_LIVE` (0 выключает живые прогоны), `SITE_DAILY_RUNS` (5), `SITE_RUNS_PER_IP` (1),
+задаются переменными: `SITE_LIVE` (0 выключает живые прогоны), `SITE_DAILY_RUNS` (5, на Render 20), `SITE_RUNS_PER_IP` (1, на Render 5),
 `SITE_CHAT_PER_IP` (40), `SITE_RECHECK_PER_IP` (5), `SITE_DAILY_CHAT` (300), `SITE_DAILY_RECHECK` (40),
 `SITE_MAX_CHAT_TOKENS` (1500). Локально без Docker: `SITE_DOTENV=1 uvicorn server.main:app` (читает `.env`).
 

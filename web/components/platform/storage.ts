@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from "react"
 
-// История чата переживает перезагрузку страницы; приватный режим и запрет хранилища не должны ломать страницу.
+// Ответы, переписка и перепроверка переживают перезагрузку и закрытие вкладки, но не дольше, чем сервер
+// хранит сам прогон. Приватный режим и запрет хранилища не должны ломать страницу.
+const TTL_MS = 2 * 60 * 60 * 1000
+
 export function load<T>(key: string, fallback: T): T {
   try {
-    const raw = window.sessionStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return fallback
+    const saved = JSON.parse(raw) as { at?: number; value?: T }
+    if (!saved.at || Date.now() - saved.at > TTL_MS || saved.value === undefined) {
+      window.localStorage.removeItem(key)
+      return fallback
+    }
+    return saved.value
   } catch {
     return fallback
   }
@@ -12,7 +21,7 @@ export function load<T>(key: string, fallback: T): T {
 
 export function save(key: string, value: unknown): void {
   try {
-    window.sessionStorage.setItem(key, JSON.stringify(value))
+    window.localStorage.setItem(key, JSON.stringify({ at: Date.now(), value }))
   } catch {
     // хранилище недоступно: просто не сохраняем
   }

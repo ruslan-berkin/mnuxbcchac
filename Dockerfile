@@ -26,4 +26,4 @@ RUN chmod -R a+rX /app && useradd --system --no-create-home sau
 USER sau
 EXPOSE 8000
 # Render передаёт порт в $PORT
-CMD ["sh", "-c", "exec uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+CMD ["sh", "-c", "exec uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --no-server-header"]

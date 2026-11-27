@@ -118,7 +118,11 @@ class JobManager:
 
     def _loop(self) -> None:
         while True:
-            job_id, upload = self._queue.get()
+            try:
+                job_id, upload = self._queue.get(timeout=600)
+            except queue.Empty:
+                self.cleanup()  # без запросов просроченные результаты тоже удаляются
+                continue
             with self._lock:
                 job = self.jobs.get(job_id)
             if job is not None:
@@ -138,7 +142,8 @@ class JobManager:
             report = run(
                 upload, job.directory / "report.md", self.settings_factory(),
                 require_llm=True, limits=limits, display_name=job.name, cache_namespace=job.id,
-                on_stage=on_stage,
+                # кэш содержит текст документа: лежит в папке прогона и удаляется вместе с ней
+                cache_dir=job.directory / "cache", on_stage=on_stage,
             )
             # тот же разбор, что в прогоне: номера строк совпадают с якорями
             job.document = load_document(upload, limits=limits, display_name=job.name)

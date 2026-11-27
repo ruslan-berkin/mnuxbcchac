@@ -1,4 +1,4 @@
-import Upload from "./Upload"
+import Upload, { PRIVACY } from "./Upload"
 import Words from "./Words"
 
 type Props = { busy: boolean; error: string | null; onUpload: (file: File) => void }
@@ -21,6 +21,7 @@ export default function Hero({ busy, error, onUpload }: Props) {
       <Upload busy={busy} onUpload={onUpload}
         className="shine mt-7 w-full rounded-full bg-accent px-10 py-5 text-lg font-semibold text-white shadow-[0_22px_44px_-18px_var(--accent)] transition hover:bg-accent-deep disabled:opacity-60 sm:w-auto" />
       <p className="mt-3 text-sm text-muted">PDF, DOCX, MD или TXT до 5 МБ</p>
+      <p className="mt-1 max-w-md text-xs text-muted">{PRIVACY}</p>
       {error && <p role="alert" className="mt-2 text-sm text-critical">{error}</p>}
     </section>
   )

@@ -29,15 +29,17 @@ export default function PlatformBlock({ data }: Props) {
           <div data-rise>
             <Preview data={data} run={null} />
           </div>
-          <dl className="grid grid-cols-3 gap-4 lg:grid-cols-1" data-rise>
-            {stats.map(([value, label]) => (
-              <div key={label as string}>
-                <dd className="text-4xl font-semibold md:text-6xl">{value}</dd>
-                <dt className="text-sm opacity-70">{label}</dt>
-              </div>
-            ))}
-            {data && <p className="col-span-3 text-xs opacity-50 lg:col-span-1">Из настоящего отчёта по документу организаторов.</p>}
-          </dl>
+          <div data-rise>
+            <dl className="grid grid-cols-3 gap-4 lg:grid-cols-1">
+              {stats.map(([value, label]) => (
+                <div key={label as string} className="flex flex-col">
+                  <dt className="order-2 text-sm opacity-70">{label}</dt>
+                  <dd className="order-1 text-4xl font-semibold md:text-6xl">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {data && <p className="mt-4 text-xs opacity-50">Из настоящего отчёта по документу организаторов.</p>}
+          </div>
         </div>
       </div>
     </section>

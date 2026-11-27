@@ -6,9 +6,9 @@ export default function Nav() {
       <nav aria-label="Главное меню" className="mx-auto flex max-w-7xl items-center gap-6 px-5 py-3">
         <a href="#top" className="font-display text-lg font-semibold tracking-tight">sau.ai</a>
         <ul className="ml-4 hidden gap-6 text-sm text-muted md:flex">
-          <li><a href="#how" className="hover:text-ink">Как работает</a></li>
-          <li><a href="#platform" className="hover:text-ink">Платформа</a></li>
-          <li><a href="#bcc" className="hover:text-ink">BCC × MNU</a></li>
+          <li><a href="#how" className="inline-block py-1 hover:text-ink">Как работает</a></li>
+          <li><a href="#platform" className="inline-block py-1 hover:text-ink">Платформа</a></li>
+          <li><a href="#bcc" className="inline-block py-1 hover:text-ink">BCC × MNU</a></li>
         </ul>
         <Link href="/app/" className="ml-auto rounded-full bg-ink px-5 py-2 text-sm font-medium text-page hover:bg-accent-deep">
           Открыть платформу

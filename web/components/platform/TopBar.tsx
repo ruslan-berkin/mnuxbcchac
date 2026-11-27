@@ -3,6 +3,7 @@
 // Шапка платформы: где я (документ и вердикт) слева, действия справа.
 import Link from "next/link"
 import { useRef } from "react"
+import { PRIVACY } from "../landing/Upload"
 import { ACCEPTED, type Report } from "../api"
 import { VERDICT } from "./meta"
 
@@ -52,7 +53,7 @@ export default function TopBar({ report, title, runId, busy, rechecked, onUpload
             if (file) onUpload(file)
             e.target.value = ""
           }} />
-        <button type="button" disabled={busy} onClick={() => input.current?.click()}
+        <button type="button" disabled={busy} onClick={() => input.current?.click()} title={PRIVACY}
           className="rounded-full bg-accent px-4 py-1.5 font-medium text-white hover:bg-accent-deep disabled:opacity-40">
           Новый документ
         </button>

@@ -21,7 +21,7 @@ const CARDS = [
 export default function Partners() {
   return (
     <section id="bcc" className="mx-auto max-w-7xl px-5 py-20">
-      <p id="how" className="flex flex-wrap items-center justify-center gap-4 text-4xl md:gap-8 md:text-6xl" data-rise>
+      <p className="flex flex-wrap items-center justify-center gap-4 text-4xl md:gap-8 md:text-6xl" data-rise>
         <span className="card-bcc grid h-28 w-40 place-items-center rounded-3xl md:h-40 md:w-60">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/bcc.png" alt="BCC" className="w-[44%]" />
@@ -32,7 +32,7 @@ export default function Partners() {
           <img src="/logos/mnu.png" alt="MNU" className="w-[82%]" />
         </span>
       </p>
-      <ul className="mt-14 grid gap-4 md:grid-cols-3">
+      <ul id="how" className="mt-14 grid scroll-mt-24 gap-4 md:grid-cols-3">
         {CARDS.map((c) => (
           <li key={c.title} data-rise>
             <Link href="/app/?example=1" className="block h-full rounded-3xl border border-rule bg-page p-7 transition hover:-translate-y-1 hover:border-ink">
