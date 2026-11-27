@@ -109,6 +109,13 @@ async function failure(res: Response): Promise<Error> {
   } catch {
     // ответ без JSON
   }
+  // Наш сервер всегда объясняет отказ в JSON. 403 без него — фильтр хостинга перед сервером.
+  if (res.status === 403) {
+    return new Error(
+      "Запрос отклонила защита хостинга: так бывает, когда в тексте есть примеры команд (например, curl). " +
+        "Загрузите этот документ в PDF или DOCX.",
+    )
+  }
   return new Error(`Сервер ответил ${res.status}`)
 }
 
