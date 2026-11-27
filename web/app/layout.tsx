@@ -26,7 +26,7 @@ const structured = {
   operatingSystem: "Web",
   inLanguage: "ru",
   description,
-  codeRepository: "https://github.com/ruslan-berkin/mnuxbcchac",
+  codeRepository: "https://github.com/ruslan-berkin/sau.ai-mnuxbcc",
   featureList: [
     "Проверка каждого требования и всего набора по ISO/IEC/IEEE 29148:2018 и IEEE 830-1998",
     "Уточняющие вопросы к аналитику и перепроверка с ответами",

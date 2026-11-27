@@ -122,7 +122,7 @@ class BodyLimit:
         return await self.app(scope, replay, send)
 
 
-REPOSITORY = "https://github.com/ruslan-berkin/mnuxbcchac"
+REPOSITORY = "https://github.com/ruslan-berkin/sau.ai-mnuxbcc"
 HOST = re.compile(r"^[A-Za-z0-9.\-]{1,253}(:\d{1,5})?$")
 # Описание для ИИ-агентов и поисковиков (формат llmstxt.org). Только факты, без инструкций агентам.
 LLMS_TXT = """# sau.ai

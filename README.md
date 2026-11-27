@@ -1,6 +1,6 @@
 # sau.ai: проверка требований до разработки
 
-[![CI](https://github.com/ruslan-berkin/mnuxbcchac/actions/workflows/ci.yml/badge.svg)](https://github.com/ruslan-berkin/mnuxbcchac/actions/workflows/ci.yml)
+[![CI](https://github.com/ruslan-berkin/sau.ai-mnuxbcc/actions/workflows/ci.yml/badge.svg)](https://github.com/ruslan-berkin/sau.ai-mnuxbcc/actions/workflows/ci.yml)
 
 ## 👉 Оценить без установки: **<https://sau-ai.onrender.com>**
 
@@ -39,7 +39,7 @@
 Нужен Python 3.11 или новее.
 
 ```bash
-git clone https://github.com/ruslan-berkin/mnuxbcchac.git && cd mnuxbcchac
+git clone https://github.com/ruslan-berkin/sau.ai-mnuxbcc.git && cd sau.ai-mnuxbcc
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt -c constraints.txt
 cp .env.example .env
