@@ -32,7 +32,7 @@ class Limits:
     sandbox: bool = True  # PDF и DOCX разбираются в отдельном процессе с лимитами
     parse_timeout_s: float = 60.0
     parse_memory_mb: int = 2048  # лимит адресного пространства процесса-парсера (RLIMIT_AS)
-    pdf_layout: bool = True  # нейросетевой анализ макета pymupdf (onnxruntime): +270 МБ памяти
+    pdf_layout: bool = False  # анализ макета pymupdf (+270 МБ) пропускает пустые таблицы; включается REQCHECK_PDF_LAYOUT=1
 
     @classmethod
     def from_env(cls, base: "Limits | None" = None) -> "Limits":

@@ -184,8 +184,8 @@ def max_upload_bytes() -> int:
 def example_parts() -> tuple[Report, Document]:
     report = Report.model_validate_json(EXAMPLE_REPORT.read_text(encoding="utf-8"))
     # Документ наш, доверенный: песочница не нужна. Нумерация строк та же, что при прогоне.
-    # разбор как при генерации отчёта (анализ макета включён), чтобы номера строк совпали с якорями
-    doc = load_document(EXAMPLE_DOCUMENT, limits=Limits(sandbox=False, pdf_layout=True), display_name=EXAMPLE_DOCUMENT.name)
+    # разбор как при генерации отчёта, чтобы номера строк совпали с якорями
+    doc = load_document(EXAMPLE_DOCUMENT, limits=Limits(sandbox=False), display_name=EXAMPLE_DOCUMENT.name)
     if doc.sha256 != report.passport.document_sha256:
         log.warning("Пример: SHA-256 документа не совпадает с паспортом отчёта, подсветка может не совпасть")
     return report, doc

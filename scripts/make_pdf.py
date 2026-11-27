@@ -50,6 +50,13 @@ def main(src: str, dst: str) -> None:
         story.draw(dev)
         writer.end_page()
     writer.close()
+    # в файл попадают только использованные знаки шрифта: иначе PDF весит десятки мегабайт
+    doc = pymupdf.open(dst)
+    doc.subset_fonts()
+    packed = tmp / "packed.pdf"
+    doc.save(packed, garbage=4, deflate=True)
+    doc.close()
+    shutil.move(packed, dst)
 
 
 if __name__ == "__main__":
