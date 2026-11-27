@@ -165,3 +165,13 @@ def test_csp_allows_only_hashed_inline_scripts(web_dir):
     csp = TestClient(create_app(web_dir)).get("/").headers["content-security-policy"]
     script = next(part for part in csp.split(";") if part.strip().startswith("script-src"))
     assert "unsafe-inline" not in script and script.count("sha256-") == 1
+
+
+def test_agent_readable_files_use_the_public_address(client):
+    headers = {"host": "sau.example.org", "x-forwarded-proto": "https"}
+    assert "Sitemap: https://sau.example.org/sitemap.xml" in client.get("/robots.txt", headers=headers).text
+    assert "<loc>https://sau.example.org/app/</loc>" in client.get("/sitemap.xml", headers=headers).text
+    llms = client.get("/llms.txt", headers=headers).text
+    assert llms.startswith("# sau.ai") and "https://sau.example.org/api/runs/example/report.md" in llms
+    # чужой Host не попадает в ответ
+    assert "<script>" not in client.get("/llms.txt", headers={"host": "<script>"}).text

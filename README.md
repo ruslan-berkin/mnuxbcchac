@@ -8,6 +8,16 @@
 
 Проект для BCC-HUB x MNU FinTech Hackathon. Задание: <https://github.com/BCC-HUB/ai-requirements-validator-task>.
 
+## Для проверяющих
+
+| Что | Где |
+|---|---|
+| Документ организаторов (вход агента, не результат) | [examples/input/requirements.md](examples/input/requirements.md), [PDF](examples/input/requirements.pdf) |
+| Отчёт, сформированный агентом | [reports/report.md](reports/report.md), [JSON](reports/report.json), [журнал прогона](reports/report.log) |
+| Запуск одной командой | `python -m reqcheck examples/input/requirements.pdf reports/report.md` |
+| Как получить и куда положить ключ | раздел «Быстрый старт» ниже, шаблон [.env.example](.env.example) |
+| Самопроверка отчёта и репозитория | `python scripts/self_check.py --report reports/report.md` и `--repo` |
+
 Принцип: **LLM думает, код контролирует.** Модель только находит дефекты и формулирует замечания и
 вопросы. Структуру отчёта, счётчики, вердикт, паспорт и проверку цитат делает детерминированный код.
 

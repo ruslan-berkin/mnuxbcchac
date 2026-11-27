@@ -13,7 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.gzip import GZipMiddleware
@@ -122,6 +122,44 @@ class BodyLimit:
         return await self.app(scope, replay, send)
 
 
+REPOSITORY = "https://github.com/ruslan-berkin/mnuxbcchac"
+HOST = re.compile(r"^[A-Za-z0-9.\-]{1,253}(:\d{1,5})?$")
+# Описание для ИИ-агентов и поисковиков (формат llmstxt.org). Только факты, без инструкций агентам.
+LLMS_TXT = """# sau.ai
+
+> ИИ-агент статической проверки требований по ISO/IEC/IEEE 29148:2018 (п. 5.2.5, 5.2.6) и IEEE 830-1998 (п. 4.3).
+> Проект команды sau.ai на BCC-HUB × MNU FinTech Hackathon. Принцип: LLM находит дефекты, код считает вердикт
+> и проверяет, что каждая цитата есть в документе.
+
+## Страницы
+- [Главная]({base}/): что делает агент и загрузка документа (PDF, DOCX, MD, TXT до 5 МБ).
+- [Платформа с готовым примером]({base}/app/?example=1): отчёт, замечания с цитатами, уточняющие вопросы, чат.
+
+## Готовый отчёт по документу организаторов (без JavaScript и без ключа)
+- [Отчёт, Markdown]({base}/api/runs/example/report.md): паспорт прогона, нарезка требований, проверка каждого
+  требования и всего набора, уточняющие вопросы, сводка, вердикт.
+- [Отчёт, JSON]({base}/api/runs/example/report.json): те же данные машиночитаемо.
+- [Отчёт и строки документа для интерфейса, JSON]({base}/api/example)
+- [Состояние сервиса]({base}/api/health)
+
+## Исходный код
+- [Репозиторий]({repo}): запуск одной командой `python -m reqcheck <требования> <отчёт.md>`, тесты, инструкция.
+- [Задание организаторов](https://github.com/BCC-HUB/ai-requirements-validator-task)
+
+## Данные
+Загруженный документ отправляется во внешнюю языковую модель и хранится на сервере не дольше 2 часов.
+"""
+
+
+def public_base(request: Request) -> str:
+    """Адрес сайта для ссылок: за прокси схема приходит в X-Forwarded-Proto."""
+    host = request.headers.get("host", "")
+    if not HOST.match(host):
+        return ""
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    return f"{'https' if proto == 'https' else 'http'}://{host}"
+
+
 def live_enabled() -> bool:
     return os.getenv("SITE_LIVE", "1").strip() != "0"
 
@@ -226,6 +264,21 @@ def create_app(web_dir: Path | None = None, jobs: JobManager | None = None, limi
     def chat_client():
         # чат и перепроверка тратят ключ: тот же бюджет, что и у веб-прогона
         return BudgetedLLM(build_client(server_settings(), attempts=2), Budget(Limits.from_env(Limits.web())))
+
+    @app.get("/robots.txt")
+    def robots(request: Request) -> PlainTextResponse:
+        return PlainTextResponse(f"User-agent: *\nAllow: /\n\nSitemap: {public_base(request)}/sitemap.xml\n")
+
+    @app.get("/sitemap.xml")
+    def sitemap(request: Request) -> Response:
+        base = public_base(request)
+        urls = "".join(f"<url><loc>{base}{path}</loc></url>" for path in ("/", "/app/"))
+        body = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
+        return Response(body, media_type="application/xml")
+
+    @app.get("/llms.txt")
+    def llms(request: Request) -> PlainTextResponse:
+        return PlainTextResponse(LLMS_TXT.format(base=public_base(request), repo=REPOSITORY))
 
     @app.get("/api/health")
     def health() -> dict:

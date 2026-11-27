@@ -17,10 +17,31 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#ffffff" }
 
+// Структурированные данные для поисковиков и ИИ-агентов.
+const structured = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "sau.ai",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web",
+  inLanguage: "ru",
+  description,
+  codeRepository: "https://github.com/ruslan-berkin/mnuxbcchac",
+  featureList: [
+    "Проверка каждого требования и всего набора по ISO/IEC/IEEE 29148:2018 и IEEE 830-1998",
+    "Уточняющие вопросы к аналитику и перепроверка с ответами",
+    "Каждая цитата проверяется по документу кодом",
+    "Отчёт в Markdown и JSON",
+  ],
+}
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {children}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured) }} />
+      </body>
     </html>
   )
 }
